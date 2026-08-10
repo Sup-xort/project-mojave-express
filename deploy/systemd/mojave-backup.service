@@ -1,0 +1,10 @@
+[Unit]
+Description=Mojave Express SQLite backup
+
+[Service]
+Type=oneshot
+User=mojave
+Environment=DB_PATH=/opt/mojave-express/data/app.db
+Environment=BACKUP_DIR=/backup
+Environment=KEEP_DAYS=7
+ExecStart=/opt/mojave-express/scripts/backup.sh

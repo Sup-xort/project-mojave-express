@@ -1,0 +1,11 @@
+# DuckDNS 도메인으로 교체하세요 (예: mojave-express.duckdns.org)
+{$DOMAIN} {
+	encode gzip
+
+	# X-Forwarded-For 위조 방지: 클라이언트가 보낸 값은 버리고 Caddy가 확인한 실제 접속 IP로 덮어쓴다.
+	# (plan.md 3.6 — Caddy가 이 헤더를 덮어쓰도록 설정해 위조를 막는다)
+	reverse_proxy 127.0.0.1:3000 {
+		header_up -X-Forwarded-For
+		header_up X-Forwarded-For {http.request.remote.host}
+	}
+}

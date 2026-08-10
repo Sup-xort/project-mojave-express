@@ -1,0 +1,21 @@
+[Unit]
+Description=Mojave Express Stamp App (customer server)
+After=network.target
+
+[Service]
+Type=simple
+User=mojave
+WorkingDirectory=/opt/mojave-express
+EnvironmentFile=/opt/mojave-express/.env
+ExecStart=/usr/bin/node src/server.js
+Restart=on-failure
+RestartSec=3
+
+# 최소 권한 하드닝
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/mojave-express/data
+
+[Install]
+WantedBy=multi-user.target
