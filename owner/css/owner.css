@@ -1,0 +1,217 @@
+:root {
+  --bg: #f5f4f1;
+  --ink: #171614;
+  --sub: rgba(23, 22, 20, 0.55);
+  --line: rgba(23, 22, 20, 0.14);
+  --accent: #e4572e;
+  --btn-bg: var(--ink);
+  --btn-text: var(--bg);
+}
+
+body.night {
+  --bg: #181715;
+  --ink: #f5f4f1;
+  --sub: rgba(245, 244, 241, 0.6);
+  --line: rgba(245, 244, 241, 0.16);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+button { cursor: pointer; border: none; background: none; font-family: inherit; color: inherit; }
+input, select { font-family: inherit; color: inherit; }
+input::placeholder { opacity: 0.45; }
+::selection { background: var(--accent); color: var(--bg); }
+input:focus-visible, button:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+#app { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* 로그인 / 최초 설정 화면 */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 32px;
+  max-width: 420px;
+  margin: 0 auto;
+  width: 100%;
+}
+.auth-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 40px;
+  animation: fadeIn 0.25s ease;
+}
+.brand-mark { align-self: center; }
+.kicker {
+  font-family: 'Inter';
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--sub);
+  text-align: center;
+  margin-bottom: 10px;
+}
+.auth-title { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; text-align: center; color: var(--ink); }
+.auth-sub { font-size: 13px; color: var(--sub); line-height: 1.6; text-align: center; margin-top: 12px; }
+.field-group { display: flex; flex-direction: column; gap: 28px; }
+.field label { display: block; font-size: 12px; color: var(--sub); letter-spacing: 0.02em; margin-bottom: 10px; }
+.field input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  padding: 8px 0;
+  font-size: 17px;
+  color: var(--ink);
+}
+.error-text { font-size: 12px; color: var(--accent); }
+.auth-actions { padding: 32px 0 40px; display: flex; flex-direction: column; gap: 16px; }
+
+.btn-primary {
+  width: 100%;
+  height: 56px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.btn-primary:disabled { opacity: 0.5; cursor: default; }
+.btn-link {
+  align-self: center;
+  font-size: 13px;
+  color: var(--sub);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 로그인 후 대시보드 셸 */
+.shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.shell-brand { display: flex; align-items: center; gap: 8px; }
+.shell-brand span { font-family: 'Inter'; font-size: 11px; letter-spacing: 0.18em; color: var(--ink); }
+.shell-actions { display: flex; align-items: center; gap: 8px; }
+.icon-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: var(--ink); }
+
+.tabs { display: flex; gap: 4px; padding: 0 16px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+.tab-btn { padding: 14px; font-size: 13px; color: var(--sub); white-space: nowrap; border-bottom: 2px solid transparent; }
+.tab-btn.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+.content { flex: 1; padding: 24px; max-width: 960px; margin: 0 auto; width: 100%; animation: fadeIn 0.2s ease; }
+.content h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 20px; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin-bottom: 32px;
+}
+.stat-tile { background: var(--bg); padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+.stat-tile .stat-label { font-size: 11px; letter-spacing: 0.1em; color: var(--sub); }
+.stat-tile .stat-value {
+  font-family: 'Inter';
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.section-title { font-size: 13px; color: var(--sub); letter-spacing: 0.02em; margin: 0 0 12px; }
+.card { border: 1px solid var(--line); padding: 20px; margin-bottom: 20px; }
+.row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.row > * { flex: 1; min-width: 120px; }
+.field-inline label { display: block; font-size: 11px; color: var(--sub); margin-bottom: 6px; letter-spacing: 0.02em; }
+.field-inline input, .field-inline select {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  padding: 8px 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+.checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); }
+.checkbox-row input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--accent); }
+
+.btn-secondary { height: 40px; padding: 0 18px; background: transparent; border: 1px solid var(--line); color: var(--ink); font-size: 13px; }
+.btn-small { height: 32px; padding: 0 12px; background: transparent; border: 1px solid var(--line); color: var(--ink); font-size: 12px; }
+
+table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data-table th, table.data-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+table.data-table th { color: var(--sub); font-weight: 500; font-size: 11px; letter-spacing: 0.05em; }
+
+/* 적립(QR) — 바쁜 카운터에서 조작을 최소화해야 하므로 크게, 버튼도 크게 */
+.qr-live { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 32px 0 16px; }
+.qr-live-box {
+  width: min(300px, 80vw);
+  height: min(300px, 80vw);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.qr-live-box img { width: 100%; height: 100%; }
+.qr-countdown { font-family: 'Inter'; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.qr-stepper { display: flex; align-items: center; gap: 28px; }
+.stepper-btn {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--line);
+  font-size: 30px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+}
+.stepper-btn:active { background: var(--line); }
+.qr-amount {
+  font-family: 'Inter';
+  font-size: 44px;
+  font-weight: 600;
+  min-width: 64px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.qr-url { font-family: 'Inter'; font-size: 11px; word-break: break-all; color: var(--sub); text-align: center; max-width: 320px; }
+
+.customer-list { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.customer-row { background: var(--bg); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; text-align: left; width: 100%; }
+.customer-row .cr-name { font-size: 14px; color: var(--ink); }
+.customer-row .cr-meta { font-size: 12px; color: var(--sub); font-family: 'Inter'; }
+
+.detail-panel { margin-top: 20px; }
+.detail-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+.detail-head .dh-name { font-size: 20px; font-weight: 600; }
+.detail-head .dh-stamps { font-family: 'Inter'; font-size: 28px; font-weight: 600; color: var(--accent); }
+
+.empty-msg { color: var(--sub); font-size: 13px; padding: 16px 0; }
+.notice { font-size: 12px; color: var(--sub); margin-top: 8px; }
+.success-text { font-size: 12px; color: var(--accent); margin-top: 8px; }
+
+.tag { display: inline-block; font-size: 11px; padding: 2px 8px; border: 1px solid var(--line); color: var(--sub); }
+.tag.pending { color: var(--accent); border-color: var(--accent); }
+
+@media (max-width: 560px) {
+  .content { padding: 16px; }
+  .stat-tile .stat-value { font-size: 28px; }
+}

@@ -2,7 +2,7 @@
   "name": "mojave-express-stamp-app",
   "version": "1.0.0",
   "private": true,
-  "description": "모하비 익스프레스 스탬프 앱 — 손님용 서버",
+  "description": "모하비 익스프레스 스탬프 앱 — 손님용/사장님용 서버",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

@@ -18,6 +18,10 @@ const addStampsStmt = db.prepare(
   'UPDATE customers SET stamps = stamps + ?, last_stamp_at = ? WHERE id = ?'
 );
 const deductStampsStmt = db.prepare('UPDATE customers SET stamps = stamps - ? WHERE id = ?');
+const searchByNicknameStmt = db.prepare(`
+  SELECT * FROM customers WHERE nickname_key LIKE ? ESCAPE '\\' ORDER BY nickname_key LIMIT ?
+`);
+const countAllStmt = db.prepare('SELECT COUNT(*) AS n FROM customers');
 
 function createCustomer({ nickname, nicknameKey, pinHash, now }) {
   const id = crypto.randomUUID();
@@ -65,6 +69,19 @@ function deductStamps(id, amount) {
   deductStampsStmt.run(amount, id);
 }
 
+// 오너 고객 조회 화면용. LIKE의 %, _, \ 를 이스케이프해 검색어를 리터럴로만 다룬다.
+function escapeLike(s) {
+  return s.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+function searchByNickname(key, limit = 20) {
+  return searchByNicknameStmt.all(`%${escapeLike(key)}%`, limit);
+}
+
+function countAll() {
+  return countAllStmt.get().n;
+}
+
 module.exports = {
   createCustomer,
   findByNicknameKey,
@@ -74,4 +91,6 @@ module.exports = {
   recordFailure,
   addStamps,
   deductStamps,
+  searchByNickname,
+  countAll,
 };

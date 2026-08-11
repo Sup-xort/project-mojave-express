@@ -16,4 +16,12 @@ function nowUnix() {
   return Math.floor(Date.now() / 1000);
 }
 
-module.exports = { minutesSinceMidnightInTZ, nowUnix };
+// 대시보드의 "오늘" 집계 기준(매장 시간대 자정) unix seconds. minutesSinceMidnightInTZ를 재사용해
+// 자체적인 tz 변환 로직을 새로 만들지 않는다.
+function startOfDayUnix(date, tz) {
+  const nowSec = Math.floor(date.getTime() / 1000);
+  const minutesToday = minutesSinceMidnightInTZ(date, tz);
+  return nowSec - minutesToday * 60 - (nowSec % 60);
+}
+
+module.exports = { minutesSinceMidnightInTZ, nowUnix, startOfDayUnix };

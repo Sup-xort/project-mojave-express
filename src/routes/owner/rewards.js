@@ -1,4 +1,3 @@
-// 임시 최소 구현 — 실제 사장님용 앱은 별도로 제작 예정. src/routes/admin/README.md 참고.
 const express = require('express');
 const db = require('../../db');
 const { appError } = require('../../middleware/errors');
