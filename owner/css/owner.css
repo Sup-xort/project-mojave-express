@@ -158,10 +158,41 @@ table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.data-table th, table.data-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); }
 table.data-table th { color: var(--sub); font-weight: 500; font-size: 11px; letter-spacing: 0.05em; }
 
-.qr-box { text-align: center; padding-top: 12px; }
-.qr-box img { width: 220px; height: 220px; }
-.qr-meta { font-size: 13px; color: var(--sub); margin-top: 12px; }
-.qr-url { font-family: 'Inter'; font-size: 11px; word-break: break-all; color: var(--sub); margin-top: 8px; }
+/* 적립(QR) — 바쁜 카운터에서 조작을 최소화해야 하므로 크게, 버튼도 크게 */
+.qr-live { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 32px 0 16px; }
+.qr-live-box {
+  width: min(300px, 80vw);
+  height: min(300px, 80vw);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.qr-live-box img { width: 100%; height: 100%; }
+.qr-countdown { font-family: 'Inter'; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.qr-stepper { display: flex; align-items: center; gap: 28px; }
+.stepper-btn {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--line);
+  font-size: 30px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+}
+.stepper-btn:active { background: var(--line); }
+.qr-amount {
+  font-family: 'Inter';
+  font-size: 44px;
+  font-weight: 600;
+  min-width: 64px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.qr-url { font-family: 'Inter'; font-size: 11px; word-break: break-all; color: var(--sub); text-align: center; max-width: 320px; }
 
 .customer-list { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); }
 .customer-row { background: var(--bg); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; text-align: left; width: 100%; }

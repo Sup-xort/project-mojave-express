@@ -1,8 +1,8 @@
 const appEl = document.getElementById('app');
 
 const TABS = [
+  { id: 'qr', label: '적립' },
   { id: 'dashboard', label: '대시보드' },
-  { id: 'qr', label: 'QR 발급' },
   { id: 'rewards', label: '리워드 관리' },
   { id: 'redemptions', label: '교환 승인' },
   { id: 'grant', label: '스탬프 지급' },
@@ -10,9 +10,11 @@ const TABS = [
   { id: 'settings', label: '설정' },
 ];
 
-let activeTab = 'dashboard';
+// 바쁜 카운터에서 가장 많이 쓰는 화면이므로 로그인하면 바로 QR이 떠 있는 상태로 시작한다.
+let activeTab = 'qr';
 let currentUsername = '';
 let qrTimer = null; // QR 화면을 벗어나도 살아있는 setInterval이 detached DOM을 건드리지 않도록 매번 정리한다.
+let qrAmount = 1;
 
 function clearAppState() {
   clearInterval(qrTimer);
@@ -267,52 +269,77 @@ async function renderDashboardTab(content) {
   }
 }
 
-// ---------- QR 발급 ----------
+// ---------- 적립 (QR) ----------
+// 카운터가 바쁠 때 가장 많이 만지는 화면이라 조작을 최소화한다: 화면에 들어오면 QR이 바로 떠 있고,
+// 수량은 +/- 두 버튼으로만 바꾼다. QR은 소진형(한 번 스캔되면 그 토큰은 다시 못 씀)이라 수량을 바꾸면
+// 곧바로 새 토큰을 발급해 보여준다. 만료되면(기본 120초) 같은 수량으로 자동으로 다시 발급한다 —
+// 사장님이 "다시 발급"을 눌러야 하는 순간이 없어야 한다.
+
+let qrExpiresAt = 0;
+let qrRequestSeq = 0; // +/- 연타로 발급 요청이 겹칠 때 가장 마지막 응답만 반영하기 위한 순번.
 
 function renderQrTab(content) {
   content.innerHTML = `
-    <h1>QR 발급</h1>
-    <div class="card">
-      <div class="row">
-        <div class="field-inline"><label>수량</label><input id="qr-amount" type="number" min="1" value="1" /></div>
-        <button id="qr-issue" class="btn-secondary">발급</button>
+    <div class="qr-live">
+      <div class="qr-live-box" id="qr-live-box"><div class="empty-msg">불러오는 중...</div></div>
+      <div class="qr-countdown" id="qr-countdown"></div>
+      <div class="qr-stepper">
+        <button id="qr-minus" class="stepper-btn" aria-label="수량 줄이기">−</button>
+        <div class="qr-amount" id="qr-amount-display">${qrAmount}</div>
+        <button id="qr-plus" class="stepper-btn" aria-label="수량 늘리기">+</button>
       </div>
-      <div id="qr-result"></div>
+      <div class="qr-url" id="qr-url"></div>
+      <div id="qr-error"></div>
     </div>
   `;
-  document.getElementById('qr-issue').addEventListener('click', issueQr);
+  document.getElementById('qr-minus').addEventListener('click', () => adjustQrAmount(-1));
+  document.getElementById('qr-plus').addEventListener('click', () => adjustQrAmount(1));
+
+  issueQrLive();
+  clearInterval(qrTimer);
+  qrTimer = setInterval(tickQr, 1000);
 }
 
-async function issueQr() {
-  const amount = Number(document.getElementById('qr-amount').value);
-  const resultEl = document.getElementById('qr-result');
-  resultEl.innerHTML = '<div class="empty-msg">발급 중...</div>';
+function adjustQrAmount(delta) {
+  qrAmount = Math.max(1, qrAmount + delta);
+  const display = document.getElementById('qr-amount-display');
+  if (display) display.textContent = qrAmount;
+  issueQrLive();
+}
+
+async function issueQrLive() {
+  const boxEl = document.getElementById('qr-live-box');
+  if (!boxEl) return; // 이 화면을 벗어난 뒤 늦게 불린 경우 (만료 타이머 race)
+  const mySeq = ++qrRequestSeq;
+  const errorEl = document.getElementById('qr-error');
+  if (errorEl) errorEl.innerHTML = '';
+
   try {
-    const issued = await ownerApi.issueQr(amount);
-    renderQr(issued);
+    const issued = await ownerApi.issueQr(qrAmount);
+    if (mySeq !== qrRequestSeq) return; // 더 최신 요청이 이미 나갔으면 이 응답은 버린다
+    const liveBox = document.getElementById('qr-live-box');
+    if (!liveBox) return;
+    qrExpiresAt = issued.expiresAt;
+    liveBox.innerHTML = `<img src="${issued.qrDataUrl}" alt="QR 코드" />`;
+    const urlEl = document.getElementById('qr-url');
+    if (urlEl) urlEl.textContent = issued.url;
+    tickQr();
   } catch (err) {
-    resultEl.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
+    if (mySeq !== qrRequestSeq) return;
+    const liveErrorEl = document.getElementById('qr-error');
+    if (liveErrorEl) liveErrorEl.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
   }
 }
 
-function renderQr(issued) {
-  const resultEl = document.getElementById('qr-result');
-  clearInterval(qrTimer);
-  const render = () => {
-    const remain = Math.max(0, issued.expiresAt - Math.floor(Date.now() / 1000));
-    resultEl.innerHTML = `
-      <div class="qr-box">
-        <img src="${issued.qrDataUrl}" alt="QR 코드" />
-        <div class="qr-meta">남은 시간 ${remain}초 · ${issued.amount}개 적립</div>
-        <div class="qr-url">${esc(issued.url)}</div>
-        <button id="qr-reissue" class="btn-small" style="margin-top:12px;">다시 발급</button>
-      </div>
-    `;
-    document.getElementById('qr-reissue').addEventListener('click', issueQr);
-    if (remain <= 0) clearInterval(qrTimer);
-  };
-  render();
-  qrTimer = setInterval(render, 1000);
+function tickQr() {
+  const countdownEl = document.getElementById('qr-countdown');
+  if (!countdownEl) {
+    clearInterval(qrTimer); // 화면을 벗어났는데 아직 살아있던 타이머면 여기서 정리한다
+    return;
+  }
+  const remain = Math.max(0, qrExpiresAt - Math.floor(Date.now() / 1000));
+  countdownEl.textContent = `남은 시간 ${remain}초`;
+  if (remain <= 0) issueQrLive();
 }
 
 // ---------- 리워드 관리 ----------
@@ -622,7 +649,7 @@ function renderSettingsTab(content) {
     } catch (err) {
       // 세션이 이미 끊겼어도 로그인 화면으로 보내면 되므로 무시한다.
     }
-    activeTab = 'dashboard';
+    activeTab = 'qr';
     renderLogin();
   });
 }
