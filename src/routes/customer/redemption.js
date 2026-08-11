@@ -39,15 +39,15 @@ router.post('/reward/request', requireAuth, (req, res, next) => {
 });
 
 router.get('/reward/status', requireAuth, (req, res) => {
-  const pending = redemptionService.getPendingForCustomer(req.customer.id);
-  if (!pending) {
+  const latest = redemptionService.getLatestForCustomer(req.customer.id);
+  if (!latest) {
     res.json({ status: 'none' });
     return;
   }
   res.json({
-    status: pending.status,
-    rewardName: pending.reward_name,
-    expiresAt: pending.requested_at + config.redemptionTtlSec,
+    status: latest.status,
+    rewardName: latest.reward_name,
+    expiresAt: latest.requested_at + config.redemptionTtlSec,
   });
 });
 

@@ -6,6 +6,10 @@ const findPendingForCustomerStmt = db.prepare(`
   SELECT * FROM redemptions WHERE customer_id = ? AND status = 'pending'
   ORDER BY requested_at DESC LIMIT 1
 `);
+const findLatestForCustomerStmt = db.prepare(`
+  SELECT * FROM redemptions WHERE customer_id = ?
+  ORDER BY requested_at DESC LIMIT 1
+`);
 const insertStmt = db.prepare(`
   INSERT INTO redemptions (customer_id, reward_id, reward_name, reward_cost, status, requested_at)
   VALUES (?, ?, ?, ?, 'pending', ?)
@@ -34,6 +38,12 @@ const countApprovedSinceStmt = db.prepare(
 
 function getPendingForCustomer(customerId) {
   return findPendingForCustomerStmt.get(customerId);
+}
+
+// pending 뿐 아니라 방금 approved/expired/cancelled된 것까지 알아야
+// 대기 화면 폴링이 "사용 완료" 등 최종 상태를 감지할 수 있다.
+function getLatestForCustomer(customerId) {
+  return findLatestForCustomerStmt.get(customerId);
 }
 
 function createRequest({ customerId, reward }) {
@@ -87,6 +97,7 @@ function countApprovedSince(sinceUnix) {
 
 module.exports = {
   getPendingForCustomer,
+  getLatestForCustomer,
   createRequest,
   getById,
   cancel,
