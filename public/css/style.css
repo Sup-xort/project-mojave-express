@@ -1,15 +1,21 @@
 :root {
-  --sand: #f4ead9;
-  --sand-dark: #e6d5b8;
-  --terracotta: #c1602c;
-  --terracotta-dark: #9c4a1f;
-  --espresso: #3a2b22;
-  --ink: #2a1f18;
-  --muted: #8a7a68;
-  --card: #fffaf2;
-  --success: #3f7d4f;
-  --error: #b3401f;
-  --radius: 14px;
+  --accent: #E4572E;
+  --bg: #F5F4F1;
+  --ink: #171614;
+  --sub: rgba(23, 22, 20, 0.55);
+  --line: rgba(23, 22, 20, 0.14);
+  --btn-bg: var(--ink);
+  --btn-text: var(--bg);
+  --success: #3F6E52;
+  --radius: 0px;
+}
+
+html[data-theme="night"] {
+  --bg: #181715;
+  --ink: #F5F4F1;
+  --sub: rgba(245, 244, 241, 0.6);
+  --line: rgba(245, 244, 241, 0.16);
+  --success: #6FA383;
 }
 
 * { box-sizing: border-box; }
@@ -17,16 +23,31 @@
 html, body {
   margin: 0;
   min-height: 100%;
-  background: var(--sand);
+  background: var(--bg);
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-family: 'Pretendard Variable', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+button { cursor: pointer; font-family: inherit; }
+input { font-family: inherit; }
+input::placeholder { opacity: 0.4; }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.kicker {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--sub);
+  text-transform: uppercase;
 }
 
 #app {
-  max-width: 480px;
+  max-width: 420px;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 20px 16px 40px;
+  padding: 40px 24px 48px;
 }
 
 .center-loading {
@@ -34,32 +55,15 @@ html, body {
   align-items: center;
   justify-content: center;
   min-height: 60vh;
-  color: var(--muted);
-}
-
-h1 {
-  font-size: 22px;
-  margin: 8px 0 0;
-  color: var(--espresso);
-}
-
-h2 {
-  font-size: 15px;
-  color: var(--muted);
-  margin: 24px 0 8px;
-}
-
-.subtitle {
-  color: var(--muted);
-  margin: 4px 0 20px;
+  color: var(--sub);
   font-size: 14px;
 }
 
-.card {
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 18px;
-  box-shadow: 0 2px 10px rgba(58, 43, 34, 0.08);
+.subtitle {
+  color: var(--sub);
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 /* 배너 */
@@ -70,183 +74,346 @@ h2 {
   right: 0;
   z-index: 100;
   text-align: center;
-  padding: 10px 12px;
-  font-size: 14px;
-  color: #fff;
-  background: var(--espresso);
+  padding: 12px;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  color: var(--bg);
+  background: var(--ink);
 }
 .banner-success { background: var(--success); }
-.banner-error { background: var(--error); }
+.banner-error { background: var(--accent); }
 .hidden { display: none; }
 
-/* 인증 화면 */
-.auth-screen { padding-top: 40px; }
-.tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-.tab-btn {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  border-radius: 999px;
-  background: var(--sand-dark);
-  color: var(--muted);
-  font-weight: 600;
-  cursor: pointer;
-}
-.tab-btn.active {
-  background: var(--terracotta);
-  color: #fff;
+/* 로고 마크 */
+.mark {
+  display: block;
+  margin: 0 auto;
 }
 
-form label {
+/* 인증 화면 */
+.auth-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 88px);
+}
+.auth-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 40px;
+}
+.auth-head { text-align: center; }
+.brand-kicker {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--sub);
+  margin-bottom: 10px;
+}
+.auth-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+form.card {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  background: none;
+  padding: 0;
+  box-shadow: none;
+}
+.field-label {
   display: block;
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--sub);
+  letter-spacing: 0.02em;
+  margin-bottom: 10px;
 }
 form input {
   display: block;
   width: 100%;
-  margin-top: 6px;
-  padding: 12px;
-  font-size: 16px;
-  border: 1px solid var(--sand-dark);
-  border-radius: 10px;
-  background: #fff;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  padding: 8px 0;
+  font-size: 17px;
   color: var(--ink);
+  border-radius: 0;
 }
-form input:focus {
-  outline: 2px solid var(--terracotta);
-  outline-offset: 1px;
+form input.input-pin { letter-spacing: 0.3em; }
+form input:focus { outline: none; border-bottom-color: var(--accent); }
+
+.error-msg { font-size: 12px; color: var(--accent); }
+
+.auth-actions {
+  padding-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 button { font-family: inherit; }
 
 .primary-btn, form button[type="submit"] {
   width: 100%;
-  padding: 13px;
+  height: 56px;
   border: none;
-  border-radius: 10px;
-  background: var(--terracotta);
-  color: #fff;
+  background: var(--btn-bg);
+  color: var(--btn-text);
   font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 .primary-btn:disabled, form button:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
 }
 
 .link-btn {
+  align-self: center;
   background: none;
   border: none;
-  color: var(--muted);
+  color: var(--sub);
   font-size: 13px;
   text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
   padding: 4px;
 }
 
 .back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: none;
   border: none;
-  color: var(--muted);
+  color: var(--ink);
   font-size: 14px;
   cursor: pointer;
-  padding: 4px 0 12px;
+  padding: 0 0 24px;
 }
 
 .hint {
-  margin-top: 24px;
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.6;
+  margin-top: 28px;
+  font-size: 11px;
+  color: var(--sub);
+  line-height: 1.7;
   text-align: center;
 }
 
 /* 홈 화면 */
-.home-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-.home-nickname { font-size: 19px; font-weight: 700; color: var(--espresso); }
-.home-cardno { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.home-screen { padding-top: 0; }
 
-.stamp-card { text-align: center; }
-.stamp-count {
-  font-size: 40px;
-  font-weight: 800;
-  color: var(--terracotta-dark);
+.home-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
-.stamp-unit { font-size: 16px; margin-left: 4px; color: var(--muted); }
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--ink);
+}
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--ink);
+}
+.home-topbar-actions { display: flex; align-items: center; gap: 4px; }
+
+.home-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 28px 0 40px;
+}
+.home-nickname { font-size: 16px; font-weight: 600; color: var(--ink); }
+.home-cardno { font-size: 11px; color: var(--sub); margin-top: 3px; }
+
+.stamp-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  text-align: center;
+}
+.stamp-kicker { font-family: 'Inter', sans-serif; font-size: 11px; letter-spacing: 0.2em; color: var(--sub); }
+.stamp-count {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+.stamp-count-num { font-size: 72px; font-weight: 600; color: var(--accent); line-height: 1; }
+.stamp-count-den { font-size: 22px; font-weight: 500; color: var(--sub); }
 
 .stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  padding: 0 8px;
+}
+.stamp-grid .dot {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--line);
+}
+.stamp-grid .dot.filled {
+  background: var(--accent);
+  border: none;
+}
+.stamp-grid .dot.filled.is-new { animation: stampPop 0.3s ease; }
+.stamp-remain { font-size: 13px; color: var(--sub); }
+
+.stamp-plain {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   justify-content: center;
-  margin: 14px 0 18px;
 }
-.dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-}
-.dot.filled { background: var(--terracotta); }
-.dot-extra {
-  font-size: 12px;
-  color: var(--muted);
-  align-self: center;
+.stamp-plain .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
+.dot-extra { font-size: 12px; color: var(--sub); align-self: center; }
+
+.stamp-manual-btn {
+  width: 100%;
+  height: 56px;
+  border: none;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-top: 40px;
 }
 
 /* 리워드 목록 */
-.reward-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.reward-item {
-  background: var(--card);
-  border-radius: 10px;
-  padding: 12px 14px;
-  box-shadow: 0 1px 4px rgba(58, 43, 34, 0.06);
+.rewards-section { margin-top: 56px; }
+.rewards-section h2 {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--sub);
+  text-transform: uppercase;
+  margin: 0 0 4px;
 }
-.reward-item.reward-inactive { opacity: 0.55; }
-.reward-main { display: flex; justify-content: space-between; font-weight: 700; }
-.reward-cost { color: var(--terracotta-dark); }
+.reward-list { list-style: none; padding: 0; margin: 0; }
+.reward-item {
+  border-top: 1px solid var(--line);
+  padding: 18px 0;
+}
+.reward-item:last-child { border-bottom: 1px solid var(--line); }
+.reward-item.reward-inactive { opacity: 0.45; }
+.reward-main { display: flex; justify-content: space-between; align-items: baseline; }
+.reward-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.reward-cost { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--accent); }
 .reward-sub {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--sub);
 }
 .reward-request-btn {
-  border: none;
-  border-radius: 999px;
-  background: var(--terracotta);
-  color: #fff;
+  border: 1px solid var(--ink);
+  background: none;
+  color: var(--ink);
   font-size: 12px;
-  font-weight: 700;
-  padding: 6px 12px;
-  cursor: pointer;
+  font-weight: 600;
+  padding: 7px 14px;
 }
 .reward-request-btn:disabled {
-  background: var(--sand-dark);
-  color: var(--muted);
+  border-color: var(--line);
+  color: var(--sub);
   cursor: default;
 }
-.reward-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 20px 0; }
+.reward-empty { color: var(--sub); font-size: 13px; text-align: center; padding: 24px 0; }
 
-/* 대기 화면 */
-.wait-screen { text-align: center; padding-top: 60px; }
+/* 수동 코드 입력 */
+.scan-screen { padding-top: 0; }
+.scan-body {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 40px 0;
+}
+.scan-frame {
+  width: 220px;
+  height: 220px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scan-frame .corner {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-color: var(--accent);
+  border-style: solid;
+  border-width: 0;
+}
+.scan-frame .corner-tl { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.scan-frame .corner-tr { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.scan-frame .corner-bl { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.scan-frame .corner-br { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.scan-frame input {
+  width: 76%;
+  text-align: center;
+  font-size: 22px;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--line);
+}
+.scan-hint { font-size: 13px; color: var(--sub); text-align: center; }
+
+/* 리워드 대기 화면 */
+.wait-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 88px);
+  text-align: center;
+  gap: 24px;
+}
+.wait-title { font-size: 22px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
 .countdown {
-  font-size: 44px;
-  font-weight: 800;
-  color: var(--terracotta-dark);
-  margin: 30px 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 48px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
+
+@keyframes stampPop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.screen { animation: fadeIn 0.25s ease; }
