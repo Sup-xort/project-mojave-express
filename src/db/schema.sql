@@ -60,15 +60,25 @@ CREATE TABLE IF NOT EXISTS rewards (
 CREATE TABLE IF NOT EXISTS coupons (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-  status      TEXT NOT NULL,               -- 'unused' | 'pending' | 'used'
+  status      TEXT NOT NULL,               -- 'unused' | 'pending' | 'used' | 'expired'
   stamp_cost  INTEGER NOT NULL,            -- 발급 시점 스냅샷. 나중에 정책이 바뀌어도 과거 기록은 그대로
   issued_at   INTEGER NOT NULL,
-  expires_at  INTEGER,                     -- 현재 정책은 무기한이라 항상 NULL. 만료 기능 대비 자리
+  expires_at  INTEGER,                     -- 발급 시점의 유효기간 정책 스냅샷. NULL이면 무기한.
+                                           -- 나중에 기간을 켜도 이미 발급된 쿠폰은 NULL 그대로 둔다
   used_at     INTEGER,
   reward_id   INTEGER REFERENCES rewards(id),  -- 사용 확정(사장님 승인) 시점 스냅샷
   reward_name TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_coupons_customer ON coupons(customer_id, status, issued_at DESC);
+CREATE INDEX IF NOT EXISTS idx_coupons_expiry ON coupons(status, expires_at);
+
+-- 사장님이 앱에서 바꾸는 운영 설정. 서버 재시작 없이 반영돼야 하는 값만 여기 둔다
+-- (PIN_PEPPER처럼 보안에 관계된 값은 .env에 그대로 남긴다).
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
 
 -- 쿠폰 사용 요청. 사장님이 승인해야 쿠폰이 실제로 소진된다.
 CREATE TABLE IF NOT EXISTS redemptions (

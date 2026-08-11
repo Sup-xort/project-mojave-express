@@ -19,5 +19,6 @@ router.use(require('./rewards'));
 router.use(require('./redemptions'));
 router.use(require('./stampGrant'));
 router.use(require('./customers'));
+router.use(require('./settings'));
 
 module.exports = router;

@@ -13,6 +13,7 @@ const ERRORS = {
   NOT_ENOUGH_STAMPS: { status: 400, message: '아직 스탬프가 부족해요' },
   REWARD_UNAVAILABLE: { status: 409, message: '지금은 교환할 수 없는 리워드예요' },
   COUPON_UNAVAILABLE: { status: 409, message: '사용할 수 없는 쿠폰이에요' },
+  COUPON_EXPIRED: { status: 409, message: '유효기간이 지난 쿠폰이에요' },
   NO_REWARD_NOW: { status: 409, message: '지금은 바꿀 수 있는 리워드가 없어요' },
   RATE_LIMITED: { status: 429, message: '잠시 후 다시 시도해주세요' },
   SERVER_ERROR: { status: 500, message: '잠시 후 다시 시도해주세요' },
@@ -24,6 +25,7 @@ const ERRORS = {
   SETUP_ALREADY_DONE: { status: 409, message: '이미 계정이 만들어져 있어요' },
   INVALID_OWNER_CREDENTIALS: { status: 401, message: '아이디 또는 비밀번호가 맞지 않아요' },
   WRONG_CURRENT_PASSWORD: { status: 401, message: '현재 비밀번호가 맞지 않아요' },
+  INVALID_TTL_DAYS: { status: 400, message: '유효기간은 0~3650일 사이로 입력해주세요' },
 };
 
 class AppError extends Error {

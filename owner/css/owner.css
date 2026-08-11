@@ -205,6 +205,9 @@ table.data-table th { color: var(--sub); font-weight: 500; font-size: 11px; lett
 .detail-head .dh-stamps { font-family: 'Inter'; font-size: 16px; font-weight: 600; color: var(--accent); white-space: nowrap; }
 
 .hint-text { font-size: 13px; color: var(--sub); line-height: 1.6; margin: -8px 0 20px; }
+.ttl-unit { font-size: 14px; color: var(--sub); padding-bottom: 10px; }
+.ttl-forever { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 13px; color: var(--sub); cursor: pointer; }
+.ttl-forever input { width: 16px; height: 16px; accent-color: var(--accent); }
 .empty-msg { color: var(--sub); font-size: 13px; padding: 16px 0; }
 .notice { font-size: 12px; color: var(--sub); margin-top: 8px; }
 .success-text { font-size: 12px; color: var(--accent); margin-top: 8px; }

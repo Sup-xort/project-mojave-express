@@ -300,6 +300,9 @@ button { font-family: inherit; }
 .coupon-icon { font-size: 28px; line-height: 1; }
 .coupon-count { font-size: 17px; font-weight: 600; color: var(--ink); }
 .coupon-sub { font-size: 12px; color: var(--sub); margin-top: 4px; }
+.coupon-expiry { font-size: 12px; color: var(--sub); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.coupon-expiry.is-urgent { color: var(--accent); font-weight: 600; }
+.coupon-used-item.is-expired { opacity: 0.5; }
 
 .stamp-manual-btn {
   width: 100%;

@@ -12,7 +12,9 @@ const router = express.Router();
 function couponView(c) {
   return {
     id: c.id,
+    status: c.status,
     issuedAt: c.issued_at,
+    expiresAt: c.expires_at,
     usedAt: c.used_at,
     rewardName: c.reward_name,
   };
@@ -24,7 +26,7 @@ router.get('/coupons', requireAuth, (req, res) => {
   res.json({
     stampCost: config.couponStampCost,
     unused: couponService.listUnused(req.customer.id).map(couponView),
-    used: couponService.listUsed(req.customer.id, 20).map(couponView),
+    history: couponService.listHistory(req.customer.id, 20).map(couponView),
     availableRewards: all.filter((r) => r.activeNow),
     schedule: all,
   });
@@ -48,6 +50,7 @@ router.post('/coupon/use', requireAuth, (req, res, next) => {
 
     const coupon = couponService.findOwned(Number(couponId), req.customer.id);
     if (!coupon || coupon.status !== 'unused') return next(appError('COUPON_UNAVAILABLE'));
+    if (couponService.isExpired(coupon)) return next(appError('COUPON_EXPIRED'));
 
     // 시간대 판정은 서버가 STORE_TZ 기준으로 다시 한다. 클라이언트 시계는 믿지 않는다.
     const reward = rewardService.findById(Number(rewardId));

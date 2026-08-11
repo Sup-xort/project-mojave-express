@@ -3,6 +3,7 @@
 // scripts/backup.sh + systemd 타이머로 별도 관리한다 (DEPLOY.md 참고).
 const qrService = require('../services/qrService');
 const redemptionService = require('../services/redemptionService');
+const couponService = require('../services/couponService');
 const loginAttemptService = require('../services/loginAttemptService');
 
 function start() {
@@ -28,6 +29,18 @@ function start() {
         console.error('[cron] redemption expire 실패', err.message);
       }
     }, 60 * 1000)
+  );
+
+  // 유효기간이 지난 미사용 쿠폰을 expired로 정리한다. 조회 쿼리에도 만료 조건이 걸려 있으므로
+  // 손님 화면의 정확성은 이 주기와 무관하다 — 내역에 상태를 남기기 위한 정리다.
+  timers.push(
+    setInterval(() => {
+      try {
+        couponService.expireStale();
+      } catch (err) {
+        console.error('[cron] coupon expire 실패', err.message);
+      }
+    }, 10 * 60 * 1000)
   );
 
   // 3.6: 오래된 로그인 시도 기록은 하루 한 번 삭제

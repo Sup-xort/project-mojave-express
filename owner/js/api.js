@@ -52,4 +52,7 @@ const ownerApi = {
   searchCustomers: (query) =>
     ownerFetch(`/api/owner/customers?query=${encodeURIComponent(query)}`),
   getCustomer: (id) => ownerFetch(`/api/owner/customers/${encodeURIComponent(id)}`),
+
+  settings: () => ownerFetch('/api/owner/settings'),
+  updateSettings: (patch) => ownerFetch('/api/owner/settings', { method: 'PUT', body: patch }),
 };

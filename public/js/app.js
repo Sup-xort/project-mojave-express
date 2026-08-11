@@ -254,6 +254,48 @@ function formatUsedAt(unix) {
   return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+function formatDate(unix) {
+  const d = new Date(unix * 1000);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
+}
+
+// 만료가 남은 날짜. 오늘 자정까지 남은 것을 D-0으로 본다 (시각이 아니라 날짜 단위로 세는 게 자연스럽다).
+function daysUntil(unix) {
+  const end = new Date(unix * 1000);
+  const today = new Date();
+  const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((startOf(end) - startOf(today)) / 86400000);
+}
+
+// 지난 쿠폰은 쓴 것과 기간이 지나 사라진 것 두 종류다.
+function couponHistoryHtml(c) {
+  const expired = c.status === 'expired';
+  const when = expired
+    ? c.expiresAt && `${formatDate(c.expiresAt)} 만료`
+    : c.usedAt && formatUsedAt(c.usedAt);
+  return `
+    <li class="reward-item coupon-used-item${expired ? ' is-expired' : ''}">
+      <div class="reward-main">
+        <span class="reward-name">${expired ? '사용하지 못한 쿠폰' : esc(c.rewardName || '리워드')}</span>
+        <span class="coupon-used-tag">${expired ? '기간 만료' : '사용 완료'}</span>
+      </div>
+      <div class="reward-sub">
+        <span class="reward-window">${when ? esc(when) : ''}</span>
+      </div>
+    </li>
+  `;
+}
+
+// 유효기간이 없으면 아무것도 표시하지 않는다 — 무기한이 기본이라 굳이 알릴 것이 없다.
+function expiryLabel(expiresAt) {
+  if (!expiresAt) return '';
+  const d = daysUntil(expiresAt);
+  if (d <= 0) return '오늘까지';
+  if (d <= 14) return `${formatDate(expiresAt)}까지 (D-${d})`;
+  return `${formatDate(expiresAt)}까지`;
+}
+
 // 사용 완료 화면을 이미 확인한 쿠폰. 서버는 최근 사용분을 잠시 계속 내려주므로
 // 손님이 "확인"을 누른 뒤에도 홈에 올 때마다 다시 뜨는 것을 막는다.
 function markCouponAcknowledged(couponId) {
@@ -301,6 +343,12 @@ function renderHome(me, coupons) {
 
   const schedule = coupons.schedule || [];
 
+  // 목록은 만료 임박순이라 첫 장이 가장 급하다. 무기한이면 아무 안내도 띄우지 않는다.
+  const soonest = (coupons.unused || []).find((c) => c.expiresAt);
+  const soonestExpiry = soonest ? expiryLabel(soonest.expiresAt) : '';
+  const soonestUrgent = soonest && daysUntil(soonest.expiresAt) <= 7;
+  const history = coupons.history || [];
+
   appEl.innerHTML = `
     <div class="screen home-screen">
       <div class="home-topbar">
@@ -338,6 +386,7 @@ function renderHome(me, coupons) {
                 ? '쓰는 시간대에 따라 받을 메뉴가 정해져요'
                 : `스탬프 ${target}개를 모으면 자동으로 쿠폰이 돼요`
             }</div>
+            ${soonestExpiry ? `<div class="coupon-expiry${soonestUrgent ? ' is-urgent' : ''}">${esc(soonestExpiry)}</div>` : ''}
           </div>
         </div>
         ${me.couponCount > 0 ? '<button id="coupon-use-btn" class="primary-btn">사용하기</button>' : ''}
@@ -353,24 +402,11 @@ function renderHome(me, coupons) {
       </section>
 
       ${
-        coupons.used.length
+        history.length
           ? `<section class="rewards-section">
-               <h2>사용한 쿠폰</h2>
+               <h2>지난 쿠폰</h2>
                <ul class="reward-list">
-                 ${coupons.used
-                   .map(
-                     (c) => `
-                   <li class="reward-item coupon-used-item">
-                     <div class="reward-main">
-                       <span class="reward-name">${esc(c.rewardName || '리워드')}</span>
-                       <span class="coupon-used-tag">사용 완료</span>
-                     </div>
-                     <div class="reward-sub">
-                       <span class="reward-window">${c.usedAt ? formatUsedAt(c.usedAt) : ''}</span>
-                     </div>
-                   </li>`
-                   )
-                   .join('')}
+                 ${history.map(couponHistoryHtml).join('')}
                </ul>
              </section>`
           : ''
@@ -448,7 +484,14 @@ function renderCouponUse(coupons) {
       </button>
       <div class="coupon-ticket">
         <span class="coupon-icon" aria-hidden="true">🎟</span>
-        <div class="coupon-ticket-text">쿠폰 ${coupons.unused.length}장 중 1장</div>
+        <div>
+          <div class="coupon-ticket-text">쿠폰 ${coupons.unused.length}장 중 1장</div>
+          ${
+            coupon.expiresAt
+              ? `<div class="coupon-expiry${daysUntil(coupon.expiresAt) <= 7 ? ' is-urgent' : ''}">${esc(expiryLabel(coupon.expiresAt))}</div>`
+              : ''
+          }
+        </div>
       </div>
       ${body}
     </div>

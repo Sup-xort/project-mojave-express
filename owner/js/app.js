@@ -704,6 +704,73 @@ async function loadCustomerDetail(id) {
 
 // ---------- 설정 ----------
 
+// 유효기간만 앱에서 바꾼다. 스탬프 수·시간대는 서버 .env 값이라 읽기 전용으로 보여준다.
+async function loadCouponPolicy() {
+  const el = document.getElementById('coupon-policy');
+  if (!el) return;
+  try {
+    const s = await ownerApi.settings();
+    el.classList.remove('empty-msg');
+    el.innerHTML = `
+      <div class="row" style="align-items:flex-end;">
+        <div class="field-inline">
+          <label>쿠폰 유효기간</label>
+          <input id="ttl-days" type="number" min="0" max="${s.maxCouponTtlDays}" value="${s.couponTtlDays}" />
+        </div>
+        <div class="ttl-unit">일</div>
+        <button id="ttl-save" class="btn-secondary">저장</button>
+      </div>
+      <label class="ttl-forever">
+        <input id="ttl-none" type="checkbox" ${s.couponTtlDays === 0 ? 'checked' : ''} />
+        유효기간 없음 (무기한)
+      </label>
+      <div id="ttl-result"></div>
+      <div class="cr-meta" style="margin-top:16px;line-height:1.7;">
+        유효기간은 쿠폰을 <b>발급하는 시점</b>에 새겨집니다. 여기서 값을 바꿔도
+        이미 손님이 갖고 있는 쿠폰의 만료일은 달라지지 않아요.<br />
+        쿠폰 1장에 필요한 스탬프: <b>${s.couponStampCost}개</b> (COUPON_STAMP_COST) ·
+        시간대 기준: <b>${esc(s.storeTz)}</b> (STORE_TZ) — 이 둘은 서버 .env에서만 바꿉니다.
+      </div>
+    `;
+
+    const daysEl = document.getElementById('ttl-days');
+    const noneEl = document.getElementById('ttl-none');
+    const resultEl = document.getElementById('ttl-result');
+
+    const syncDisabled = () => {
+      daysEl.disabled = noneEl.checked;
+    };
+    syncDisabled();
+
+    noneEl.addEventListener('change', () => {
+      if (noneEl.checked) daysEl.value = '0';
+      else if (Number(daysEl.value) === 0) daysEl.value = '90';
+      syncDisabled();
+    });
+    daysEl.addEventListener('input', () => {
+      noneEl.checked = Number(daysEl.value) === 0;
+      syncDisabled();
+    });
+
+    document.getElementById('ttl-save').addEventListener('click', async () => {
+      resultEl.innerHTML = '';
+      const days = noneEl.checked ? 0 : Number(daysEl.value);
+      try {
+        const saved = await ownerApi.updateSettings({ couponTtlDays: days });
+        resultEl.innerHTML = `<div class="success-text">${
+          saved.couponTtlDays === 0
+            ? '앞으로 발급되는 쿠폰은 무기한이에요'
+            : `앞으로 발급되는 쿠폰은 ${saved.couponTtlDays}일간 유효해요`
+        }</div>`;
+      } catch (err) {
+        resultEl.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
+      }
+    });
+  } catch (err) {
+    el.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
+  }
+}
+
 function renderSettingsTab(content) {
   content.innerHTML = `
     <h1>설정</h1>
@@ -727,24 +794,7 @@ function renderSettingsTab(content) {
     </div>
   `;
 
-  // 서버 환경변수로만 바꿀 수 있는 값이라 읽기 전용으로 보여준다.
-  ownerApi
-    .dashboard()
-    .then((d) => {
-      const el = document.getElementById('coupon-policy');
-      if (!el) return;
-      el.classList.remove('empty-msg');
-      el.innerHTML = `
-        <div>쿠폰 1장에 필요한 스탬프: <b>${d.couponStampCost}개</b> <span class="cr-meta">(COUPON_STAMP_COST)</span></div>
-        <div style="margin-top:8px;">시간대 판정 기준: <b>${esc(d.storeTz)}</b> <span class="cr-meta">(STORE_TZ)</span></div>
-        <div style="margin-top:8px;" class="cr-meta">스탬프가 기준 수만큼 모이면 자동으로 쿠폰이 되고, 남은 스탬프는 다음 판으로 넘어갑니다.
-        바꾸려면 서버 .env를 수정한 뒤 재시작하세요.</div>
-      `;
-    })
-    .catch((err) => {
-      const el = document.getElementById('coupon-policy');
-      if (el) el.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
-    });
+  loadCouponPolicy();
 
   document.getElementById('pw-submit').addEventListener('click', async () => {
     const current = document.getElementById('pw-current').value;
