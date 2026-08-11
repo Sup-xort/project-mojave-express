@@ -66,9 +66,30 @@ CREATE TABLE IF NOT EXISTS redemptions (
 );
 CREATE INDEX IF NOT EXISTS idx_redemptions_pending ON redemptions(status, requested_at);
 
--- 로그인 시도 제한 (IP 기준)
+-- 로그인 시도 제한 (IP 기준). 손님·사장님 로그인 모두 여기 기록한다.
 CREATE TABLE IF NOT EXISTS login_attempts (
   ip         TEXT NOT NULL,
   attempt_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_login_attempts ON login_attempts(ip, attempt_at);
+
+-- 사장님(오너) 계정. 매장 태블릿 한 대에서 쓰는 것을 가정하지만 스키마는 여러 계정도 담을 수 있다.
+CREATE TABLE IF NOT EXISTS owners (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  username       TEXT NOT NULL,             -- 표시용 원본
+  username_key   TEXT NOT NULL UNIQUE,      -- 정규화 결과. 중복 판정/로그인 조회 기준
+  password_hash  TEXT NOT NULL,             -- bcrypt
+  created_at     INTEGER NOT NULL,          -- unix seconds
+  failed_count   INTEGER NOT NULL DEFAULT 0,
+  locked_until   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS owner_sessions (
+  token_hash   TEXT PRIMARY KEY,            -- sha256(원본토큰)
+  owner_id     INTEGER NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
+  created_at   INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_owner_sessions_owner ON owner_sessions(owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_redemptions_customer ON redemptions(customer_id, requested_at DESC);

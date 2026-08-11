@@ -3,6 +3,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
 const { attachSession } = require('./middleware/session');
+const { attachOwnerSession } = require('./middleware/ownerSession');
 const { apiRateLimit } = require('./middleware/rateLimit');
 const { errorHandler, notFoundHandler } = require('./middleware/errors');
 
@@ -17,13 +18,14 @@ app.use(cookieParser());
 
 // 정적 파일은 rate limit 밖에 둔다 (9절 체크리스트: "정적 파일 외 모든 API에").
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
+app.use('/owner', express.static(path.join(__dirname, '..', 'owner')));
 
 app.use('/api', apiRateLimit({ windowMs: 60_000, max: 120 }));
 app.use('/api', attachSession);
+app.use('/api/owner', attachOwnerSession);
 
 app.use('/api', require('./routes/customer'));
-app.use('/api/admin', require('./routes/admin'));
+app.use('/api/owner', require('./routes/owner'));
 
 app.use(require('./routes/shortlink'));
 

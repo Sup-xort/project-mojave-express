@@ -19,13 +19,13 @@ const nodeEnv = process.env.NODE_ENV || 'development';
 const isProd = nodeEnv === 'production';
 
 const pinPepper = process.env.PIN_PEPPER || '';
-const adminKey = process.env.ADMIN_KEY || '';
+const ownerPasswordPepper = process.env.OWNER_PASSWORD_PEPPER || '';
 
 if (isProd && (!pinPepper || pinPepper === 'CHANGE_ME_TO_A_LONG_RANDOM_STRING')) {
   throw new Error('PIN_PEPPER가 설정되지 않았습니다. .env를 확인하세요.');
 }
-if (isProd && (!adminKey || adminKey === 'CHANGE_ME_ADMIN_KEY')) {
-  throw new Error('ADMIN_KEY가 설정되지 않았습니다. .env를 확인하세요.');
+if (isProd && (!ownerPasswordPepper || ownerPasswordPepper === 'CHANGE_ME_TO_A_LONG_RANDOM_STRING')) {
+  throw new Error('OWNER_PASSWORD_PEPPER가 설정되지 않았습니다. .env를 확인하세요.');
 }
 
 module.exports = {
@@ -51,5 +51,5 @@ module.exports = {
   redemptionTtlSec: int('REDEMPTION_TTL_SEC', 600),
 
   pinPepper,
-  adminKey,
+  ownerPasswordPepper,
 };

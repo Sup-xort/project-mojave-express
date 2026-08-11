@@ -15,6 +15,12 @@ const addStampsStmt = db.prepare(
   'UPDATE customers SET stamps = stamps + ?, last_stamp_at = ? WHERE id = ?'
 );
 const getStampsStmt = db.prepare('SELECT stamps FROM customers WHERE id = ?');
+const listByCustomerStmt = db.prepare(
+  'SELECT * FROM stamp_log WHERE customer_id = ? ORDER BY created_at DESC LIMIT ?'
+);
+const sumSinceStmt = db.prepare(
+  'SELECT COALESCE(SUM(amount), 0) AS total FROM stamp_log WHERE created_at >= ?'
+);
 
 // 4.3/4.4: "먼저 SELECT해서 확인 후 UPDATE"하면 동시 요청 둘 다 통과해버린다.
 // UPDATE ... WHERE used_by IS NULL 자체가 원자적 선점이다. 전 과정은 하나의 트랜잭션.
@@ -39,4 +45,13 @@ const redeemQr = db.transaction((customerId, token) => {
   return { ok: true, added: qr.amount, stamps };
 });
 
-module.exports = { redeemQr };
+function listByCustomer(customerId, limit = 20) {
+  return listByCustomerStmt.all(customerId, limit);
+}
+
+// 오너 대시보드의 "오늘 적립" 집계용.
+function sumAmountSince(sinceUnix) {
+  return sumSinceStmt.get(sinceUnix).total;
+}
+
+module.exports = { redeemQr, listByCustomer, sumAmountSince };

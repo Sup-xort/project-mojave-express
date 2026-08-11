@@ -24,6 +24,13 @@ const expireStaleStmt = db.prepare(`
   UPDATE redemptions SET status = 'expired', resolved_at = ?
   WHERE status = 'pending' AND requested_at < ?
 `);
+const listByCustomerStmt = db.prepare(
+  'SELECT * FROM redemptions WHERE customer_id = ? ORDER BY requested_at DESC LIMIT ?'
+);
+const countPendingStmt = db.prepare("SELECT COUNT(*) AS n FROM redemptions WHERE status = 'pending'");
+const countApprovedSinceStmt = db.prepare(
+  "SELECT COUNT(*) AS n FROM redemptions WHERE status = 'approved' AND resolved_at >= ?"
+);
 
 function getPendingForCustomer(customerId) {
   return findPendingForCustomerStmt.get(customerId);
@@ -65,6 +72,19 @@ function expireStale() {
   expireStaleStmt.run(nowUnix(), cutoff);
 }
 
+function listByCustomer(customerId, limit = 20) {
+  return listByCustomerStmt.all(customerId, limit);
+}
+
+function countPending() {
+  return countPendingStmt.get().n;
+}
+
+// 오너 대시보드의 "오늘 승인된 교환" 집계용.
+function countApprovedSince(sinceUnix) {
+  return countApprovedSinceStmt.get(sinceUnix).n;
+}
+
 module.exports = {
   getPendingForCustomer,
   createRequest,
@@ -73,4 +93,7 @@ module.exports = {
   listPending,
   approveTx,
   expireStale,
+  listByCustomer,
+  countPending,
+  countApprovedSince,
 };

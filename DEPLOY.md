@@ -51,7 +51,7 @@ sudo -u mojave mkdir -p data
 `.env`를 열어 최소한 아래 값을 실제 값으로 바꾼다.
 
 - `PIN_PEPPER` — 긴 랜덤 문자열 (`openssl rand -base64 48`)
-- `ADMIN_KEY` — 관리자 임시 API 키 (`openssl rand -base64 24`)
+- `OWNER_PASSWORD_PEPPER` — 긴 랜덤 문자열 (`openssl rand -base64 48`)
 - `NODE_ENV=production`
 - `COOKIE_SECURE=true`
 
@@ -98,9 +98,9 @@ sudo systemctl enable --now mojave-backup.timer
 ## 8. 확인
 
 - `https://<도메인>/` → 가입 화면이 뜨는지
-- `https://<도메인>/admin/` → 관리자 키 입력 후 QR 발급이 되는지
-- 새 손님 가입 → 관리자에서 QR 발급 → 손님 화면에서 코드 입력(또는 QR 스캔) → 스탬프 적립 확인
-- 관리자에서 리워드 하나 등록 → 손님이 교환 요청 → 관리자에서 승인 → 손님 화면에 반영되는지
+- `https://<도메인>/owner/` → 최초 접속 시 사장님 계정 설정 화면이 뜨고, 계정 생성 후 QR 발급이 되는지
+- 새 손님 가입 → 사장님 앱에서 QR 발급 → 손님 화면에서 코드 입력(또는 QR 스캔) → 스탬프 적립 확인
+- 사장님 앱에서 리워드 하나 등록 → 손님이 교환 요청 → 사장님 앱에서 승인 → 손님 화면에 반영되는지
 
 ## 배포 후 업데이트
 

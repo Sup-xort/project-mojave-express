@@ -14,6 +14,14 @@ const ERRORS = {
   REWARD_UNAVAILABLE: { status: 409, message: '지금은 교환할 수 없는 리워드예요' },
   RATE_LIMITED: { status: 429, message: '잠시 후 다시 시도해주세요' },
   SERVER_ERROR: { status: 500, message: '잠시 후 다시 시도해주세요' },
+
+  // 오너(사장님) 앱 전용
+  INVALID_USERNAME: { status: 400, message: '아이디는 영문/숫자 3~20자로 입력해주세요' },
+  INVALID_PASSWORD_FORMAT: { status: 400, message: '비밀번호는 8자 이상으로 입력해주세요' },
+  USERNAME_TAKEN: { status: 409, message: '이미 사용 중인 아이디예요' },
+  SETUP_ALREADY_DONE: { status: 409, message: '이미 계정이 만들어져 있어요' },
+  INVALID_OWNER_CREDENTIALS: { status: 401, message: '아이디 또는 비밀번호가 맞지 않아요' },
+  WRONG_CURRENT_PASSWORD: { status: 401, message: '현재 비밀번호가 맞지 않아요' },
 };
 
 class AppError extends Error {

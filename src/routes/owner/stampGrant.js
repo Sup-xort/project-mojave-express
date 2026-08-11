@@ -1,5 +1,3 @@
-// 임시 최소 구현 — 실제 사장님용 앱은 별도로 제작 예정. src/routes/admin/README.md 참고.
-// PIN 찾기/계정 복구 대신 두는 유일한 구제 수단 (plan.md 10절).
 const express = require('express');
 const { appError } = require('../../middleware/errors');
 const { validateNickname } = require('../../utils/nickname');
