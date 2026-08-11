@@ -15,9 +15,14 @@ let activeTab = 'qr';
 let currentUsername = '';
 let qrTimer = null; // QR 화면을 벗어나도 살아있는 setInterval이 detached DOM을 건드리지 않도록 매번 정리한다.
 let qrAmount = 1;
+let ownerEventSource = null; // 교환 요청 실시간 알림용 SSE 연결. 로그아웃/화면 전환 시 정리한다.
 
 function clearAppState() {
   clearInterval(qrTimer);
+  if (ownerEventSource) {
+    ownerEventSource.close();
+    ownerEventSource = null;
+  }
 }
 
 function esc(s) {
@@ -62,6 +67,72 @@ function bindEnter(el, fn) {
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') fn();
   });
+}
+
+// ---------- 실시간 알림 (교환 요청) ----------
+// 손님이 리워드 교환을 요청하면 서버가 SSE로 밀어준다. 어느 탭에 있든 즉시 팝업으로 보여주고,
+// 마침 교환 승인 탭을 보고 있으면 목록도 같이 새로고침한다.
+
+function connectOwnerEvents() {
+  if (ownerEventSource) return;
+  ownerEventSource = new EventSource('/api/owner/events');
+  ownerEventSource.addEventListener('redemption_request', (e) => {
+    let data;
+    try {
+      data = JSON.parse(e.data);
+    } catch (err) {
+      return;
+    }
+    showRedemptionToast(data);
+    beep();
+    if (activeTab === 'redemptions') loadRedemptions();
+    if (activeTab === 'dashboard') renderDashboardTab(document.getElementById('content'));
+  });
+}
+
+function showRedemptionToast({ nickname, rewardName }) {
+  const stack = document.getElementById('toast-stack');
+  if (!stack) return;
+  const el = document.createElement('div');
+  el.className = 'owner-toast';
+  el.innerHTML = `
+    <div class="owner-toast-title">${esc(nickname)}님의 교환요청이 들어왔어요</div>
+    <div class="owner-toast-sub">${esc(rewardName)}</div>
+  `;
+  el.addEventListener('click', () => {
+    activeTab = 'redemptions';
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === 'redemptions'));
+    renderTab();
+    dismissToast(el);
+  });
+  stack.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => dismissToast(el), 6000);
+}
+
+function dismissToast(el) {
+  if (!el.isConnected) return;
+  el.classList.remove('show');
+  setTimeout(() => el.remove(), 200);
+}
+
+// 별도 오디오 파일 없이 짧은 알림음만 낸다. 브라우저가 막으면(자동재생 정책 등) 조용히 무시한다.
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+    osc.onended = () => ctx.close();
+  } catch (err) {
+    // 무시
+  }
 }
 
 // ---------- 부트스트랩 ----------
@@ -223,6 +294,7 @@ function renderShell() {
       ).join('')}
     </div>
     <div class="content" id="content"></div>
+    <div class="toast-stack" id="toast-stack"></div>
   `;
 
   document.getElementById('night-toggle').addEventListener('click', toggleNight);
@@ -235,6 +307,7 @@ function renderShell() {
   });
 
   renderTab();
+  connectOwnerEvents();
 }
 
 function renderTab() {

@@ -12,6 +12,7 @@ const router = express.Router();
 router.use(require('./auth'));
 
 router.use(requireOwnerAuth);
+router.use(require('./events'));
 router.use(require('./dashboard'));
 router.use(require('./qr'));
 router.use(require('./rewards'));

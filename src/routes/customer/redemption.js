@@ -5,6 +5,7 @@ const { appError } = require('../../middleware/errors');
 const rewardService = require('../../services/rewardService');
 const redemptionService = require('../../services/redemptionService');
 const customerService = require('../../services/customerService');
+const ownerEvents = require('../../services/ownerEvents');
 
 const router = express.Router();
 
@@ -28,6 +29,11 @@ router.post('/reward/request', requireAuth, (req, res, next) => {
     }
 
     const redemption = redemptionService.createRequest({ customerId: customer.id, reward });
+    ownerEvents.broadcast('redemption_request', {
+      redemptionId: redemption.id,
+      nickname: customer.nickname,
+      rewardName: redemption.reward_name,
+    });
     res.json({
       redemptionId: redemption.id,
       rewardName: redemption.reward_name,
