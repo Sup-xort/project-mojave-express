@@ -63,6 +63,49 @@ function stopRewardPoll() {
   }
 }
 
+// ---- QR 카메라 스캔 ----
+
+let scanStream = null;
+let scanRAF = null;
+let jsQRLoadPromise = null;
+
+function stopScan() {
+  if (scanRAF) {
+    cancelAnimationFrame(scanRAF);
+    scanRAF = null;
+  }
+  if (scanStream) {
+    scanStream.getTracks().forEach((t) => t.stop());
+    scanStream = null;
+  }
+}
+
+function loadJsQR() {
+  if (window.jsQR) return Promise.resolve();
+  if (jsQRLoadPromise) return jsQRLoadPromise;
+  jsQRLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('스캐너를 불러오지 못했어요'));
+    document.head.appendChild(s);
+  });
+  return jsQRLoadPromise;
+}
+
+// 매장 QR은 https://<도메인>/s/<token> 형태의 URL이다 (src/routes/admin/qr.js).
+function extractStampToken(text) {
+  try {
+    const url = new URL(text, location.origin);
+    const m = url.pathname.match(/^\/s\/([^/]+)\/?$/);
+    if (m) return decodeURIComponent(m[1]);
+  } catch (e) {
+    // URL이 아니면 아래에서 원문 텍스트를 토큰으로 취급해본다.
+  }
+  const trimmed = String(text || '').trim();
+  return /^[A-Za-z0-9_-]{8,64}$/.test(trimmed) ? trimmed : null;
+}
+
 // ---- 라우팅 (plan.md 8.1) ----
 
 async function init() {
@@ -105,6 +148,7 @@ async function afterAuth(me) {
 
 function renderAuth(prefillNickname, mode) {
   stopRewardPoll();
+  stopScan();
   const hasNickname = !!prefillNickname;
   let currentMode = mode || (hasNickname ? 'login' : 'signup');
   const isLogin = currentMode === 'login';
@@ -235,6 +279,7 @@ async function goHome() {
 
 function renderHome(me, rewards) {
   stopRewardPoll();
+  stopScan();
 
   if (me.pendingRedemption) {
     renderRewardWait(me.pendingRedemption);
@@ -274,7 +319,7 @@ function renderHome(me, rewards) {
         ${remainMsg ? `<div class="stamp-remain">${remainMsg}</div>` : ''}
       </div>
 
-      <button id="stamp-manual-btn" class="stamp-manual-btn">코드 입력해서 적립하기</button>
+      <button id="stamp-scan-btn" class="stamp-manual-btn">QR 스캔하기</button>
 
       <section class="rewards-section">
         <h2>리워드</h2>
@@ -297,7 +342,7 @@ function renderHome(me, rewards) {
     renderAuth('');
   });
 
-  document.getElementById('stamp-manual-btn').addEventListener('click', renderManualStampEntry);
+  document.getElementById('stamp-scan-btn').addEventListener('click', renderScan);
 
   document.querySelectorAll('.reward-request-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -317,9 +362,102 @@ function renderHome(me, rewards) {
   });
 }
 
-// ---- 화면: 수동 코드 입력 (카메라 권한 거부 시 대안, plan.md 8.3) ----
+// ---- 화면: QR 스캔 (plan.md 8.3의 주 동선 — 앱 안에서 카메라로 직접 스캔) ----
+
+function renderScan() {
+  stopRewardPoll();
+  stopScan();
+
+  appEl.innerHTML = `
+    <div class="screen scan-screen">
+      <button class="back-btn" id="back-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"></path></svg>
+        QR 스캔
+      </button>
+      <div class="scan-body">
+        <div class="scan-viewport">
+          <video id="scan-video" playsinline muted></video>
+          <span class="corner corner-tl"></span>
+          <span class="corner corner-tr"></span>
+          <span class="corner corner-bl"></span>
+          <span class="corner corner-br"></span>
+          <span class="scanline"></span>
+        </div>
+        <div class="scan-hint" id="scan-status">카메라를 켜는 중...</div>
+        <button type="button" id="scan-manual-link" class="link-btn">코드를 직접 입력할게요</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('back-btn').addEventListener('click', () => {
+    stopScan();
+    goHome();
+  });
+  document.getElementById('scan-manual-link').addEventListener('click', () => {
+    stopScan();
+    renderManualStampEntry();
+  });
+
+  const video = document.getElementById('scan-video');
+  const statusEl = document.getElementById('scan-status');
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let handled = false;
+
+  async function handleDetected(text) {
+    if (handled) return;
+    const token = extractStampToken(text);
+    if (!token) return; // 우리 QR 형식이 아니면 계속 스캔한다.
+    handled = true;
+    stopScan();
+    statusEl.textContent = '처리 중...';
+    try {
+      const result = await api.stamp(token);
+      flash(`스탬프 ${result.added}개 적립됐어요!`, 'success');
+    } catch (err) {
+      flash(err.message, 'error');
+    }
+    await goHome();
+  }
+
+  function tick() {
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+      if (code && code.data) {
+        handleDetected(code.data);
+        if (handled) return;
+      }
+    }
+    scanRAF = requestAnimationFrame(tick);
+  }
+
+  loadJsQR()
+    .then(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }))
+    .then((stream) => {
+      scanStream = stream;
+      video.srcObject = stream;
+      return video.play();
+    })
+    .then(() => {
+      statusEl.textContent = 'QR코드를 프레임 안에 맞춰주세요';
+      scanRAF = requestAnimationFrame(tick);
+    })
+    .catch(() => {
+      statusEl.textContent = '카메라를 사용할 수 없어요. 아래에서 코드를 입력해주세요.';
+      statusEl.classList.add('is-error');
+    });
+}
+
+// ---- 화면: 수동 코드 입력 (카메라를 쓸 수 없을 때의 대안, plan.md 8.3) ----
 
 function renderManualStampEntry() {
+  stopRewardPoll();
+  stopScan();
+
   appEl.innerHTML = `
     <div class="screen scan-screen">
       <button class="back-btn" id="back-btn">
@@ -327,18 +465,9 @@ function renderManualStampEntry() {
         코드 입력
       </button>
       <p class="subtitle">매장 화면 하단에 표시된 코드를 입력해주세요.</p>
-      <form id="stamp-form">
-        <div class="scan-body">
-          <div class="scan-frame">
-            <span class="corner corner-tl"></span>
-            <span class="corner corner-tr"></span>
-            <span class="corner corner-bl"></span>
-            <span class="corner corner-br"></span>
-            <input id="f-token" type="text" autocomplete="off" placeholder="코드" required />
-          </div>
-          <div class="scan-hint">카운터의 코드를 입력하세요</div>
-          <button type="submit" id="stamp-submit" class="primary-btn">적립하기</button>
-        </div>
+      <form id="stamp-form" class="manual-entry-body">
+        <input id="f-token" class="code-field" type="text" autocomplete="off" placeholder="코드" required />
+        <button type="submit" id="stamp-submit" class="primary-btn">적립하기</button>
       </form>
     </div>
   `;
@@ -364,6 +493,7 @@ function renderManualStampEntry() {
 
 function renderRewardWait(pending) {
   stopRewardPoll();
+  stopScan();
 
   const render = () => {
     const remain = Math.max(0, pending.expiresAt - Math.floor(Date.now() / 1000));

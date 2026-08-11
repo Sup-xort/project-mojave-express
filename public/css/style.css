@@ -348,7 +348,7 @@ button { font-family: inherit; }
 }
 .reward-empty { color: var(--sub); font-size: 13px; text-align: center; padding: 24px 0; }
 
-/* 수동 코드 입력 */
+/* QR 스캔 (실제 카메라) */
 .scan-screen { padding-top: 0; }
 .scan-body {
   margin-top: 8px;
@@ -358,34 +358,62 @@ button { font-family: inherit; }
   gap: 28px;
   padding: 40px 0;
 }
-.scan-frame {
-  width: 220px;
-  height: 220px;
+.scan-viewport {
+  width: 240px;
+  height: 240px;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
+  background: #111110;
 }
-.scan-frame .corner {
+.scan-viewport video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.scan-viewport .corner {
   position: absolute;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-color: var(--accent);
   border-style: solid;
   border-width: 0;
+  pointer-events: none;
 }
-.scan-frame .corner-tl { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
-.scan-frame .corner-tr { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
-.scan-frame .corner-bl { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
-.scan-frame .corner-br { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
-.scan-frame input {
-  width: 76%;
+.scan-viewport .corner-tl { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.scan-viewport .corner-tr { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.scan-viewport .corner-bl { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.scan-viewport .corner-br { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.scan-viewport .scanline {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 50%;
+  height: 1px;
+  background: var(--accent);
+  animation: scanline 2.2s ease-in-out infinite;
+}
+.scan-hint { font-size: 13px; color: var(--sub); text-align: center; }
+.scan-hint.is-error { color: var(--accent); }
+
+/* 수동 코드 입력 (카메라를 쓸 수 없을 때의 대안) */
+.manual-entry-body {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.code-field {
+  width: 100%;
   text-align: center;
   font-size: 22px;
   letter-spacing: 0.1em;
+  border: none;
   border-bottom: 1px solid var(--line);
+  background: transparent;
+  padding: 10px 0;
+  color: var(--ink);
 }
-.scan-hint { font-size: 13px; color: var(--sub); text-align: center; }
+.code-field:focus { outline: none; border-bottom-color: var(--accent); }
 
 /* 리워드 대기 화면 */
 .wait-screen {
@@ -411,6 +439,11 @@ button { font-family: inherit; }
   0% { transform: scale(0.4); opacity: 0; }
   60% { transform: scale(1.08); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
+}
+@keyframes scanline {
+  0% { transform: translateY(-92px); }
+  50% { transform: translateY(92px); }
+  100% { transform: translateY(-92px); }
 }
 @keyframes fadeIn {
   from { opacity: 0; }
