@@ -21,6 +21,7 @@ router.post('/stamp', requireAuth, (req, res, next) => {
     res.json({
       stamps: result.stamps,
       added: result.added,
+      couponsIssued: result.couponsIssued,
       rewards: rewardService.activeRewards(),
     });
   } catch (err) {

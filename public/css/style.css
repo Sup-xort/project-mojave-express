@@ -283,14 +283,23 @@ button { font-family: inherit; }
 .stamp-grid .dot.filled.is-new { animation: stampPop 0.3s ease; }
 .stamp-remain { font-size: 13px; color: var(--sub); }
 
-.stamp-plain {
+/* 쿠폰 카드 — 스탬프 카드 바로 아래, 홈의 두 번째 축 */
+.coupon-card {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
+  margin-top: 40px;
+  padding: 20px;
+  border: 1px solid var(--line);
 }
-.stamp-plain .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
-.dot-extra { font-size: 12px; color: var(--sub); align-self: center; }
+.coupon-card.is-active { border-color: var(--accent); }
+.coupon-card .primary-btn { width: auto; padding: 0 24px; height: 44px; flex: 0 0 auto; }
+.coupon-card-main { display: flex; align-items: center; gap: 14px; }
+.coupon-icon { font-size: 28px; line-height: 1; }
+.coupon-count { font-size: 17px; font-weight: 600; color: var(--ink); }
+.coupon-sub { font-size: 12px; color: var(--sub); margin-top: 4px; }
 
 .stamp-manual-btn {
   width: 100%;
@@ -324,7 +333,13 @@ button { font-family: inherit; }
 .reward-item.reward-inactive { opacity: 0.45; }
 .reward-main { display: flex; justify-content: space-between; align-items: baseline; }
 .reward-name { font-size: 15px; font-weight: 600; color: var(--ink); }
-.reward-cost { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--accent); }
+.reward-badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
 .reward-sub {
   display: flex;
   justify-content: space-between;
@@ -333,20 +348,8 @@ button { font-family: inherit; }
   font-size: 12px;
   color: var(--sub);
 }
-.reward-request-btn {
-  border: 1px solid var(--ink);
-  background: none;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 7px 14px;
-}
-.reward-request-btn:disabled {
-  border-color: var(--line);
-  color: var(--sub);
-  cursor: default;
-}
 .reward-empty { color: var(--sub); font-size: 13px; text-align: center; padding: 24px 0; }
+.coupon-used-tag { font-size: 11px; color: var(--sub); letter-spacing: 0.04em; }
 
 /* QR 스캔 (실제 카메라) */
 .scan-screen { padding-top: 0; }
@@ -434,6 +437,53 @@ button { font-family: inherit; }
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
+
+/* 쿠폰 사용 화면 */
+.coupon-screen { padding-top: 0; }
+.coupon-ticket {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 24px 0 8px;
+  padding: 22px 20px;
+  border: 1px dashed var(--accent);
+}
+.coupon-ticket-text { font-size: 16px; font-weight: 600; color: var(--ink); }
+
+.choice-list { list-style: none; padding: 0; margin: 16px 0 32px; }
+.choice-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+.choice-list li:last-child .choice-item { border-bottom: 1px solid var(--line); }
+.choice-item input { width: 20px; height: 20px; accent-color: var(--accent); flex: 0 0 auto; }
+.choice-main { display: flex; flex-direction: column; gap: 4px; }
+.choice-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.choice-window { font-size: 12px; color: var(--sub); }
+
+/* 사용 완료 화면 — 손님이 확인을 누를 때까지 남아 있다 */
+.done-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 88px);
+  text-align: center;
+  gap: 24px;
+}
+.done-mark { animation: stampPop 0.42s ease; }
+.done-title { font-size: 26px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
+.done-time {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--sub);
+  font-variant-numeric: tabular-nums;
+}
+.done-screen .primary-btn { margin-top: 8px; }
 
 @keyframes stampPop {
   0% { transform: scale(0.4); opacity: 0; }

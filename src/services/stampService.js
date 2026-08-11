@@ -1,4 +1,5 @@
 const db = require('../db');
+const couponService = require('./couponService');
 const { nowUnix } = require('../utils/time');
 
 const claimQrStmt = db.prepare(`
@@ -41,8 +42,21 @@ const redeemQr = db.transaction((customerId, token) => {
   insertLogStmt.run(customerId, token, qr.amount, now);
   addStampsStmt.run(qr.amount, now, customerId);
 
+  // 기준치가 차면 같은 트랜잭션 안에서 곧바로 쿠폰으로 바꾼다. 적립과 변환이 따로 커밋되면
+  // 그 사이에 손님 화면이 "스탬프 11개" 같은 중간 상태를 보게 된다.
+  const couponsIssued = couponService.issueForStamps(customerId, now);
+
   const stamps = getStampsStmt.get(customerId).stamps;
-  return { ok: true, added: qr.amount, stamps };
+  return { ok: true, added: qr.amount, stamps, couponsIssued };
+});
+
+// 사장님 수동 지급(계정 복구용). QR 적립과 똑같이 쿠폰 자동 변환까지 한 트랜잭션에서 처리해야
+// 수동 지급분만 쿠폰으로 안 바뀌는 일이 없다.
+const grantStamps = db.transaction((customerId, amount) => {
+  const now = nowUnix();
+  addStampsStmt.run(amount, now, customerId);
+  const couponsIssued = couponService.issueForStamps(customerId, now);
+  return { stamps: getStampsStmt.get(customerId).stamps, couponsIssued };
 });
 
 function listByCustomer(customerId, limit = 20) {
@@ -54,4 +68,4 @@ function sumAmountSince(sinceUnix) {
   return sumSinceStmt.get(sinceUnix).total;
 }
 
-module.exports = { redeemQr, listByCustomer, sumAmountSince };
+module.exports = { redeemQr, grantStamps, listByCustomer, sumAmountSince };

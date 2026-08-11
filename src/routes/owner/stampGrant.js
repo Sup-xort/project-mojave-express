@@ -1,8 +1,8 @@
 const express = require('express');
 const { appError } = require('../../middleware/errors');
 const { validateNickname } = require('../../utils/nickname');
-const { nowUnix } = require('../../utils/time');
 const customerService = require('../../services/customerService');
+const stampService = require('../../services/stampService');
 
 const router = express.Router();
 
@@ -16,8 +16,8 @@ router.post('/stamp/grant', (req, res, next) => {
   const customer = customerService.findByNicknameKey(v.key);
   if (!customer) return next(appError('SERVER_ERROR'));
 
-  customerService.addStamps(customer.id, amt, nowUnix());
-  res.json({ ok: true, nickname: customer.nickname, stamps: customer.stamps + amt });
+  const { stamps, couponsIssued } = stampService.grantStamps(customer.id, amt);
+  res.json({ ok: true, nickname: customer.nickname, stamps, couponsIssued });
 });
 
 module.exports = router;

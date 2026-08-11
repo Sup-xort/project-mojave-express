@@ -3,6 +3,7 @@ const { appError } = require('../../middleware/errors');
 const { normalizeNickname } = require('../../utils/nickname');
 const customerService = require('../../services/customerService');
 const stampService = require('../../services/stampService');
+const couponService = require('../../services/couponService');
 const redemptionService = require('../../services/redemptionService');
 
 const router = express.Router();
@@ -34,6 +35,7 @@ router.get('/customers/:id', (req, res, next) => {
     nickname: customer.nickname,
     cardNo: customerService.getCardNo(customer.id),
     stamps: customer.stamps,
+    couponCount: couponService.countUnused(customer.id),
     createdAt: customer.created_at,
     lastStampAt: customer.last_stamp_at,
     stampLog: stampService.listByCustomer(customer.id, 20).map((s) => ({
@@ -42,8 +44,8 @@ router.get('/customers/:id', (req, res, next) => {
     })),
     redemptions: redemptionService.listByCustomer(customer.id, 20).map((r) => ({
       id: r.id,
+      couponId: r.coupon_id,
       rewardName: r.reward_name,
-      rewardCost: r.reward_cost,
       status: r.status,
       requestedAt: r.requested_at,
       resolvedAt: r.resolved_at,

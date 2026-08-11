@@ -428,12 +428,16 @@ function hhmmToMin(s) {
   return h * 60 + m;
 }
 
+// 필요 스탬프는 여기서 정하지 않는다. 쿠폰 1장 = 고정 스탬프 수라서 리워드마다 다를 수 없다.
+// 사장님이 정하는 것은 "몇 시부터 몇 시까지 무엇을 주는가" 뿐이다.
 async function renderRewardsTab(content) {
   content.innerHTML = `
     <h1>리워드 관리</h1>
+    <p class="hint-text">쿠폰 1장을 무엇으로 바꿔줄지는 손님이 쿠폰을 <b>쓰는 시각</b>이 정합니다.
+    아래 시간대가 그 기준이에요.</p>
     <div class="card">
       <table class="data-table" id="rewards-table">
-        <thead><tr><th>이름</th><th>필요 스탬프</th><th>시간대</th><th>활성</th><th></th></tr></thead>
+        <thead><tr><th>이름</th><th>시간대</th><th>상태</th><th>순서</th><th></th></tr></thead>
         <tbody><tr><td colspan="5" class="empty-msg">불러오는 중...</td></tr></tbody>
       </table>
     </div>
@@ -441,7 +445,6 @@ async function renderRewardsTab(content) {
       <div class="section-title">새 리워드</div>
       <div class="row">
         <div class="field-inline"><label>이름</label><input id="rw-name" type="text" /></div>
-        <div class="field-inline"><label>필요 스탬프</label><input id="rw-cost" type="number" min="1" value="10" /></div>
         <div class="field-inline"><label>정렬 순서</label><input id="rw-sort" type="number" value="0" /></div>
       </div>
       <div class="row" style="margin-top:16px;">
@@ -453,6 +456,13 @@ async function renderRewardsTab(content) {
   `;
   document.getElementById('rw-create').addEventListener('click', createReward);
   await loadRewards();
+}
+
+function rewardStatusCell(r) {
+  if (!r.active) return '<span class="tag">꺼짐</span>';
+  const now = r.activeNow ? '<span class="tag pending">지금 활성</span>' : '<span class="tag">시간대 밖</span>';
+  // 겹침은 오류가 아니다. 그 시간에는 손님이 둘 중 하나를 고르게 된다는 뜻이라 알려만 준다.
+  return r.overlapping ? `${now} <span class="tag">겹침</span>` : now;
 }
 
 async function loadRewards() {
@@ -467,10 +477,10 @@ async function loadRewards() {
             (r) => `
         <tr>
           <td>${esc(r.name)}</td>
-          <td>${r.cost}</td>
           <td>${esc(r.window)}</td>
-          <td><span class="tag${r.activeNow ? ' pending' : ''}">${r.activeNow ? '지금 활성' : '비활성'}</span></td>
-          <td><button class="btn-small" data-toggle="${r.id}">${r.activeNow ? '끄기' : '켜기'}</button></td>
+          <td>${rewardStatusCell(r)}</td>
+          <td>${r.sortOrder}</td>
+          <td><button class="btn-small" data-toggle="${r.id}" data-active="${r.active}">${r.active ? '끄기' : '켜기'}</button></td>
         </tr>`
           )
           .join('')
@@ -478,12 +488,18 @@ async function loadRewards() {
 
     tbody.querySelectorAll('[data-toggle]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        const id = Number(btn.dataset.toggle);
-        const rewards = await ownerApi.rewards();
-        const target = rewards.find((r) => r.id === id);
-        if (!target) return;
-        await ownerApi.updateReward(id, { active: !target.activeNow ? 1 : 0 });
-        loadRewards();
+        // 스케줄과 무관한 수동 on/off(active)를 뒤집는다. activeNow는 지금 시각이 시간대 안인지일 뿐이라
+        // 그걸 기준으로 뒤집으면 시간대 밖의 리워드를 끌 수 없다.
+        btn.disabled = true;
+        try {
+          await ownerApi.updateReward(Number(btn.dataset.toggle), {
+            active: btn.dataset.active === '1' ? 0 : 1,
+          });
+          await loadRewards();
+        } catch (err) {
+          btn.disabled = false;
+          alert(err.message);
+        }
       });
     });
   } catch (err) {
@@ -493,12 +509,11 @@ async function loadRewards() {
 
 async function createReward() {
   const name = document.getElementById('rw-name').value.trim();
-  const cost = Number(document.getElementById('rw-cost').value);
   const sortOrder = Number(document.getElementById('rw-sort').value);
   const startMin = hhmmToMin(document.getElementById('rw-start').value);
   const endMin = hhmmToMin(document.getElementById('rw-end').value);
   try {
-    await ownerApi.createReward({ name, cost, startMin, endMin, sortOrder, active: 1 });
+    await ownerApi.createReward({ name, startMin, endMin, sortOrder, active: 1 });
     document.getElementById('rw-name').value = '';
     loadRewards();
   } catch (err) {
@@ -514,7 +529,7 @@ async function renderRedemptionsTab(content) {
     <div class="card">
       <div style="text-align:right;margin-bottom:12px;"><button id="rd-refresh" class="btn-small">새로고침</button></div>
       <table class="data-table" id="redemptions-table">
-        <thead><tr><th>별명</th><th>리워드</th><th>필요 스탬프</th><th>요청 시각</th><th></th></tr></thead>
+        <thead><tr><th>별명</th><th>바꿔줄 리워드</th><th>쿠폰</th><th>요청 시각</th><th></th></tr></thead>
         <tbody><tr><td colspan="5" class="empty-msg">불러오는 중...</td></tr></tbody>
       </table>
     </div>
@@ -536,7 +551,7 @@ async function loadRedemptions() {
         <tr>
           <td>${esc(r.nickname)}</td>
           <td>${esc(r.rewardName)}</td>
-          <td>${r.rewardCost}</td>
+          <td>🎟 #${r.couponId ?? '-'}</td>
           <td>${fmtTime(r.requestedAt)}</td>
           <td><button class="btn-small" data-approve="${r.id}">승인</button></td>
         </tr>`
@@ -637,6 +652,13 @@ function renderCustomersTab(content) {
   bindEnter(document.getElementById('cs-query'), search);
 }
 
+function redemptionStatusLabel(status) {
+  return (
+    { pending: '대기 중', approved: '사용 완료', expired: '시간 만료', cancelled: '손님 취소' }[status] ||
+    status
+  );
+}
+
 async function loadCustomerDetail(id) {
   const detailEl = document.getElementById('cs-detail');
   detailEl.innerHTML = `<div class="empty-msg">불러오는 중...</div>`;
@@ -646,7 +668,7 @@ async function loadCustomerDetail(id) {
       <div class="card detail-panel">
         <div class="detail-head">
           <span class="dh-name">${esc(c.nickname)} <span class="cr-meta">#${esc(c.cardNo)}</span></span>
-          <span class="dh-stamps">${c.stamps}개</span>
+          <span class="dh-stamps">스탬프 ${c.stamps}개 · 🎟 ${c.couponCount}장</span>
         </div>
         <div class="section-title">최근 적립 내역</div>
         <table class="data-table">
@@ -658,7 +680,7 @@ async function loadCustomerDetail(id) {
             }
           </tbody>
         </table>
-        <div class="section-title" style="margin-top:20px;">최근 교환 내역</div>
+        <div class="section-title" style="margin-top:20px;">최근 쿠폰 사용 내역</div>
         <table class="data-table">
           <tbody>
             ${
@@ -666,10 +688,10 @@ async function loadCustomerDetail(id) {
                 ? c.redemptions
                     .map(
                       (r) =>
-                        `<tr><td>${fmtTime(r.requestedAt)}</td><td>${esc(r.rewardName)}</td><td>${esc(r.status)}</td></tr>`
+                        `<tr><td>${fmtTime(r.requestedAt)}</td><td>🎟 #${r.couponId ?? '-'}</td><td>${esc(r.rewardName)}</td><td>${esc(redemptionStatusLabel(r.status))}</td></tr>`
                     )
                     .join('')
-                : `<tr><td class="empty-msg">교환 내역이 없어요</td></tr>`
+                : `<tr><td class="empty-msg">사용 내역이 없어요</td></tr>`
             }
           </tbody>
         </table>
@@ -697,9 +719,32 @@ function renderSettingsTab(content) {
       <div id="pw-result"></div>
     </div>
     <div class="card">
+      <div class="section-title">쿠폰 정책</div>
+      <div id="coupon-policy" class="empty-msg">불러오는 중...</div>
+    </div>
+    <div class="card">
       <button id="logout-btn" class="btn-secondary">로그아웃</button>
     </div>
   `;
+
+  // 서버 환경변수로만 바꿀 수 있는 값이라 읽기 전용으로 보여준다.
+  ownerApi
+    .dashboard()
+    .then((d) => {
+      const el = document.getElementById('coupon-policy');
+      if (!el) return;
+      el.classList.remove('empty-msg');
+      el.innerHTML = `
+        <div>쿠폰 1장에 필요한 스탬프: <b>${d.couponStampCost}개</b> <span class="cr-meta">(COUPON_STAMP_COST)</span></div>
+        <div style="margin-top:8px;">시간대 판정 기준: <b>${esc(d.storeTz)}</b> <span class="cr-meta">(STORE_TZ)</span></div>
+        <div style="margin-top:8px;" class="cr-meta">스탬프가 기준 수만큼 모이면 자동으로 쿠폰이 되고, 남은 스탬프는 다음 판으로 넘어갑니다.
+        바꾸려면 서버 .env를 수정한 뒤 재시작하세요.</div>
+      `;
+    })
+    .catch((err) => {
+      const el = document.getElementById('coupon-policy');
+      if (el) el.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
+    });
 
   document.getElementById('pw-submit').addEventListener('click', async () => {
     const current = document.getElementById('pw-current').value;

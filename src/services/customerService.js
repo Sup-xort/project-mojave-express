@@ -14,10 +14,6 @@ const clearLockStmt = db.prepare(
 const recordFailureStmt = db.prepare(
   'UPDATE customers SET failed_count = ? , locked_until = ? WHERE id = ?'
 );
-const addStampsStmt = db.prepare(
-  'UPDATE customers SET stamps = stamps + ?, last_stamp_at = ? WHERE id = ?'
-);
-const deductStampsStmt = db.prepare('UPDATE customers SET stamps = stamps - ? WHERE id = ?');
 const searchByNicknameStmt = db.prepare(`
   SELECT * FROM customers WHERE nickname_key LIKE ? ESCAPE '\\' ORDER BY nickname_key LIMIT ?
 `);
@@ -61,13 +57,8 @@ function recordFailure(id, failedCount, lockedUntil) {
   recordFailureStmt.run(failedCount, lockedUntil, id);
 }
 
-function addStamps(id, amount, now) {
-  addStampsStmt.run(amount, now, id);
-}
-
-function deductStamps(id, amount) {
-  deductStampsStmt.run(amount, id);
-}
+// 스탬프 가감은 stampService(적립·수동지급)와 couponService(쿠폰 변환) 안에서만 한다.
+// 두 곳 다 트랜잭션 안에서 처리해야 해서 여기에 범용 헬퍼를 두면 트랜잭션 밖에서 불릴 위험이 있다.
 
 // 오너 고객 조회 화면용. LIKE의 %, _, \ 를 이스케이프해 검색어를 리터럴로만 다룬다.
 function escapeLike(s) {
@@ -89,8 +80,6 @@ module.exports = {
   getCardNo,
   clearLock,
   recordFailure,
-  addStamps,
-  deductStamps,
   searchByNickname,
   countAll,
 };

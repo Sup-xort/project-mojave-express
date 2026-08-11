@@ -30,8 +30,9 @@ const api = {
   logout: () => apiFetch('/api/logout', { method: 'POST' }),
   rewards: () => apiFetch('/api/rewards'),
   stamp: (token) => apiFetch('/api/stamp', { method: 'POST', body: { token } }),
-  rewardRequest: (rewardId) =>
-    apiFetch('/api/reward/request', { method: 'POST', body: { rewardId } }),
+  coupons: () => apiFetch('/api/coupons'),
+  couponUse: (couponId, rewardId) =>
+    apiFetch('/api/coupon/use', { method: 'POST', body: { couponId, rewardId } }),
   rewardStatus: () => apiFetch('/api/reward/status'),
   rewardCancel: () => apiFetch('/api/reward/cancel', { method: 'POST' }),
 };

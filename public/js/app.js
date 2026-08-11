@@ -52,6 +52,12 @@ function flash(message, kind = 'info') {
   bannerTimer = setTimeout(() => bannerEl.classList.add('hidden'), 3200);
 }
 
+// 스탬프가 기준치를 채우면 서버가 그 자리에서 쿠폰으로 바꾼다. 그 사실을 적립 안내에 함께 알린다.
+function stampResultMessage(result) {
+  const base = `스탬프 ${result.added}개 적립됐어요!`;
+  return result.couponsIssued > 0 ? `${base} 🎟 쿠폰 ${result.couponsIssued}장이 생겼어요` : base;
+}
+
 function stopRewardPoll() {
   if (rewardPollTimer) {
     clearInterval(rewardPollTimer);
@@ -135,7 +141,7 @@ async function afterAuth(me) {
     sessionStorage.removeItem('me_pending_stamp_token');
     try {
       const result = await api.stamp(pendingToken);
-      flash(`스탬프 ${result.added}개 적립됐어요!`, 'success');
+      flash(stampResultMessage(result), 'success');
     } catch (err) {
       flash(err.message, 'error');
     }
@@ -214,60 +220,54 @@ function renderFatal(err) {
 
 // ---- 화면: 홈 ----
 
-// 다음 목표: 아직 못 모은 것 중 가장 적은 스탬프가 필요한 리워드.
-// 전부 모았다면 가장 비싼 리워드를 목표(가득 찬 링)로 보여준다.
-function nextTarget(stamps, rewards) {
-  if (!rewards.length) return null;
-  const ahead = rewards.map((r) => r.cost).filter((c) => c > stamps);
-  if (ahead.length) return Math.min(...ahead);
-  return Math.max(...rewards.map((r) => r.cost));
-}
-
-function stampGridHtml(stamps, rewards) {
-  const target = nextTarget(stamps, rewards);
-
-  if (!target || target > 30) {
-    const shown = Math.min(stamps, 50);
-    let dots = '';
-    for (let i = 0; i < shown; i += 1) dots += '<span class="dot filled"></span>';
-    const extra = stamps - shown;
-    return `<div class="stamp-plain">${dots}${extra > 0 ? `<span class="dot-extra">+${extra}</span>` : ''}</div>`;
-  }
-
+// 목표는 항상 쿠폰 1장에 필요한 스탬프 수다. 리워드마다 값이 다르지 않으므로
+// 판(카드) 하나 = 쿠폰 한 장으로 단순하게 보여준다. 넘친 만큼은 다음 판으로 이월된다.
+function stampGridHtml(stamps, target) {
+  const filledCount = stamps % target;
   let cells = '';
   for (let i = 0; i < target; i += 1) {
-    const filled = i < stamps;
-    const isNew = filled && i === stamps - 1;
+    const filled = i < filledCount;
+    const isNew = filled && i === filledCount - 1;
     cells += `<span class="dot${filled ? ' filled' : ''}${isNew ? ' is-new' : ''}"></span>`;
   }
   return `<div class="stamp-grid">${cells}</div>`;
 }
 
-function rewardItemHtml(r, stamps) {
-  const affordable = r.activeNow && stamps >= r.cost;
-  const cls = r.activeNow ? '' : 'reward-inactive';
+// 손님 홈의 리워드 섹션은 읽기 전용 시간표다. 교환은 쿠폰 화면에서만 한다.
+function rewardItemHtml(r) {
   return `
-    <li class="reward-item ${cls}">
+    <li class="reward-item ${r.activeNow ? '' : 'reward-inactive'}">
       <div class="reward-main">
         <span class="reward-name">${esc(r.name)}</span>
-        <span class="reward-cost">${r.cost}개</span>
+        ${r.activeNow ? '<span class="reward-badge">지금 가능</span>' : ''}
       </div>
       <div class="reward-sub">
-        <span class="reward-window">${r.activeNow ? '지금 가능' : `${esc(r.window)} 운영`}</span>
-        ${
-          r.activeNow
-            ? `<button class="reward-request-btn" data-id="${r.id}" ${affordable ? '' : 'disabled'}>교환 요청</button>`
-            : ''
-        }
+        <span class="reward-window">${esc(r.window)}</span>
       </div>
     </li>
   `;
 }
 
+function formatUsedAt(unix) {
+  const d = new Date(unix * 1000);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// 사용 완료 화면을 이미 확인한 쿠폰. 서버는 최근 사용분을 잠시 계속 내려주므로
+// 손님이 "확인"을 누른 뒤에도 홈에 올 때마다 다시 뜨는 것을 막는다.
+function markCouponAcknowledged(couponId) {
+  sessionStorage.setItem('me_ack_coupon', String(couponId));
+}
+
+function isCouponAcknowledged(couponId) {
+  return sessionStorage.getItem('me_ack_coupon') === String(couponId);
+}
+
 async function goHome() {
   try {
-    const [me, rewards] = await Promise.all([api.me(), api.rewards()]);
-    renderHome(me, rewards);
+    const [me, coupons] = await Promise.all([api.me(), api.coupons()]);
+    renderHome(me, coupons);
   } catch (err) {
     if (err.status === 401) {
       renderAuth(localStorage.getItem('me_last_nickname') || '');
@@ -277,7 +277,7 @@ async function goHome() {
   }
 }
 
-function renderHome(me, rewards) {
+function renderHome(me, coupons) {
   stopRewardPoll();
   stopScan();
 
@@ -286,11 +286,20 @@ function renderHome(me, rewards) {
     return;
   }
 
-  const target = nextTarget(me.stamps, rewards);
-  const remain = target ? Math.max(0, target - me.stamps) : null;
-  const remainMsg = target
-    ? (remain === 0 ? '리워드를 받을 준비가 되었습니다' : `${remain}개 더 모으면 리워드`)
-    : '';
+  // 폴링으로 결과를 못 받고 화면을 벗어났더라도 여기서 사용 완료를 되살린다.
+  if (me.lastUsedCoupon && !isCouponAcknowledged(me.lastUsedCoupon.couponId)) {
+    renderCouponDone(me.lastUsedCoupon);
+    return;
+  }
+
+  const target = me.stampCost;
+  const remain = (target - (me.stamps % target)) % target;
+  const remainMsg =
+    me.couponCount > 0 && remain === 0
+      ? '쿠폰을 사용할 수 있어요'
+      : `${remain === 0 ? target : remain}개 더 모으면 쿠폰 1장`;
+
+  const schedule = coupons.schedule || [];
 
   appEl.innerHTML = `
     <div class="screen home-screen">
@@ -312,21 +321,60 @@ function renderHome(me, rewards) {
       <div class="stamp-card">
         <div class="stamp-kicker">STAMP CARD</div>
         <div class="stamp-count">
-          <span class="stamp-count-num">${me.stamps}</span>
-          ${target ? `<span class="stamp-count-den">/ ${target}</span>` : ''}
+          <span class="stamp-count-num">${me.stamps % target}</span>
+          <span class="stamp-count-den">/ ${target}</span>
         </div>
-        ${stampGridHtml(me.stamps, rewards)}
-        ${remainMsg ? `<div class="stamp-remain">${remainMsg}</div>` : ''}
+        ${stampGridHtml(me.stamps, target)}
+        <div class="stamp-remain">${remainMsg}</div>
+      </div>
+
+      <div class="coupon-card${me.couponCount > 0 ? ' is-active' : ''}">
+        <div class="coupon-card-main">
+          <span class="coupon-icon" aria-hidden="true">🎟</span>
+          <div>
+            <div class="coupon-count">쿠폰 ${me.couponCount}장</div>
+            <div class="coupon-sub">${
+              me.couponCount > 0
+                ? '쓰는 시간대에 따라 받을 메뉴가 정해져요'
+                : `스탬프 ${target}개를 모으면 자동으로 쿠폰이 돼요`
+            }</div>
+          </div>
+        </div>
+        ${me.couponCount > 0 ? '<button id="coupon-use-btn" class="primary-btn">사용하기</button>' : ''}
       </div>
 
       <button id="stamp-scan-btn" class="stamp-manual-btn">QR 스캔하기</button>
 
       <section class="rewards-section">
-        <h2>리워드</h2>
+        <h2>시간대별 리워드</h2>
         <ul class="reward-list">
-          ${rewards.map((r) => rewardItemHtml(r, me.stamps)).join('') || '<li class="reward-empty">등록된 리워드가 없어요</li>'}
+          ${schedule.map(rewardItemHtml).join('') || '<li class="reward-empty">등록된 리워드가 없어요</li>'}
         </ul>
       </section>
+
+      ${
+        coupons.used.length
+          ? `<section class="rewards-section">
+               <h2>사용한 쿠폰</h2>
+               <ul class="reward-list">
+                 ${coupons.used
+                   .map(
+                     (c) => `
+                   <li class="reward-item coupon-used-item">
+                     <div class="reward-main">
+                       <span class="reward-name">${esc(c.rewardName || '리워드')}</span>
+                       <span class="coupon-used-tag">사용 완료</span>
+                     </div>
+                     <div class="reward-sub">
+                       <span class="reward-window">${c.usedAt ? formatUsedAt(c.usedAt) : ''}</span>
+                     </div>
+                   </li>`
+                   )
+                   .join('')}
+               </ul>
+             </section>`
+          : ''
+      }
     </div>
   `;
 
@@ -344,22 +392,112 @@ function renderHome(me, rewards) {
 
   document.getElementById('stamp-scan-btn').addEventListener('click', renderScan);
 
-  document.querySelectorAll('.reward-request-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
+  const useBtn = document.getElementById('coupon-use-btn');
+  if (useBtn) useBtn.addEventListener('click', () => renderCouponUse(coupons));
+}
+
+// ---- 화면: 쿠폰 사용 ----
+// 쿠폰에는 이름이 없다. 지금 열려 있는 리워드가 하나면 그걸로 확정되고,
+// 시간대가 겹쳐 여러 개면 손님이 고른다.
+function renderCouponUse(coupons) {
+  stopRewardPoll();
+  stopScan();
+
+  const coupon = coupons.unused[0];
+  const available = coupons.availableRewards || [];
+  const closed = (coupons.schedule || []).filter((r) => !r.activeNow);
+
+  if (!coupon) {
+    goHome();
+    return;
+  }
+
+  const body = available.length
+    ? `
+      <p class="subtitle">지금 바꿀 수 있어요${available.length > 1 ? ' — 하나를 골라주세요' : ''}</p>
+      <ul class="choice-list">
+        ${available
+          .map(
+            (r, i) => `
+          <li>
+            <label class="choice-item">
+              <input type="radio" name="reward" value="${r.id}" ${i === 0 ? 'checked' : ''} />
+              <span class="choice-main">
+                <span class="choice-name">${esc(r.name)}</span>
+                <span class="choice-window">${esc(r.window)}</span>
+              </span>
+            </label>
+          </li>`
+          )
+          .join('')}
+      </ul>
+      <button id="coupon-submit" class="primary-btn">사장님께 요청</button>
+    `
+    : `
+      <p class="subtitle">지금은 바꿀 수 있는 리워드가 없어요.<br />아래 시간에 다시 와주세요.</p>
+      <ul class="reward-list">
+        ${closed.map(rewardItemHtml).join('') || '<li class="reward-empty">등록된 리워드가 없어요</li>'}
+      </ul>
+    `;
+
+  appEl.innerHTML = `
+    <div class="screen coupon-screen">
+      <button class="back-btn" id="back-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"></path></svg>
+        쿠폰 사용
+      </button>
+      <div class="coupon-ticket">
+        <span class="coupon-icon" aria-hidden="true">🎟</span>
+        <div class="coupon-ticket-text">쿠폰 ${coupons.unused.length}장 중 1장</div>
+      </div>
+      ${body}
+    </div>
+  `;
+
+  document.getElementById('back-btn').addEventListener('click', goHome);
+
+  const submitBtn = document.getElementById('coupon-submit');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', async () => {
+      const picked = document.querySelector('input[name="reward"]:checked');
+      if (!picked) return;
+      submitBtn.disabled = true;
       try {
-        const req = await api.rewardRequest(Number(btn.dataset.id));
+        const req = await api.couponUse(coupon.id, Number(picked.value));
         renderRewardWait(req);
       } catch (err) {
         flash(err.message, 'error');
-        if (err.code === 'REWARD_UNAVAILABLE') {
-          await goHome();
-        } else {
-          btn.disabled = false;
-        }
+        await goHome();
       }
     });
-  });
+  }
+}
+
+// ---- 화면: 사용 완료 ----
+// 손님이 직접 "확인"을 눌러야 넘어간다. 잠깐 뜨는 배너로는 놓치기 쉽다.
+function renderCouponDone(info) {
+  stopRewardPoll();
+  stopScan();
+
+  markCouponAcknowledged(info.couponId);
+
+  appEl.innerHTML = `
+    <div class="screen done-screen">
+      <svg class="done-mark" width="84" height="84" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="18" fill="none" stroke="var(--accent)" stroke-width="1.2"></circle>
+        <path d="M12 20.5l5.5 5.5L28 15" fill="none" stroke="var(--accent)" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <div>
+        <div class="done-title">사용 완료</div>
+        <p class="subtitle">"${esc(info.rewardName || '리워드')}"로 교환됐어요.</p>
+      </div>
+      ${info.usedAt ? `<div class="done-time">${formatUsedAt(info.usedAt)}</div>` : ''}
+      <button id="done-btn" class="primary-btn">확인</button>
+    </div>
+  `;
+
+  document.getElementById('done-btn').addEventListener('click', goHome);
 }
 
 // ---- 화면: QR 스캔 (plan.md 8.3의 주 동선 — 앱 안에서 카메라로 직접 스캔) ----
@@ -413,7 +551,7 @@ function renderScan() {
     statusEl.textContent = '처리 중...';
     try {
       const result = await api.stamp(token);
-      flash(`스탬프 ${result.added}개 적립됐어요!`, 'success');
+      flash(stampResultMessage(result), 'success');
     } catch (err) {
       flash(err.message, 'error');
     }
@@ -480,7 +618,7 @@ function renderManualStampEntry() {
     btn.disabled = true;
     try {
       const result = await api.stamp(token);
-      flash(`스탬프 ${result.added}개 적립됐어요!`, 'success');
+      flash(stampResultMessage(result), 'success');
       await goHome();
     } catch (err) {
       flash(err.message, 'error');
@@ -489,7 +627,7 @@ function renderManualStampEntry() {
   });
 }
 
-// ---- 화면: 리워드 교환 대기 (plan.md 5.3) ----
+// ---- 화면: 쿠폰 사용 승인 대기 (plan.md 5.3) ----
 
 function renderRewardWait(pending) {
   stopRewardPoll();
@@ -529,15 +667,21 @@ function renderRewardWait(pending) {
   rewardPollTimer = setInterval(async () => {
     try {
       const status = await api.rewardStatus();
+      if (status.status === 'pending') return;
+
+      stopRewardPoll();
       if (status.status === 'approved') {
-        stopRewardPoll();
-        flash('교환이 완료됐어요!', 'success');
-        await goHome();
-      } else if (status.status !== 'pending') {
-        stopRewardPoll();
-        if (status.status === 'expired') flash('요청이 만료됐어요', 'error');
-        await goHome();
+        // 배너로 스쳐 지나가게 두지 않는다. 손님이 확인을 누를 때까지 남아 있는 화면으로 보낸다.
+        renderCouponDone({
+          couponId: pending.couponId,
+          rewardName: status.rewardName,
+          usedAt: status.resolvedAt,
+        });
+        return;
       }
+      if (status.status === 'expired') flash('시간이 지나 요청이 취소됐어요. 쿠폰은 그대로 있어요', 'error');
+      else if (status.status === 'cancelled') flash('요청을 취소했어요', 'info');
+      await goHome();
     } catch (err) {
       stopRewardPoll();
       if (err.status === 401) renderAuth(localStorage.getItem('me_last_nickname') || '');

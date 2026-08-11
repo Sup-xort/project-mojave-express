@@ -12,6 +12,8 @@ const ERRORS = {
   ALREADY_USED: { status: 409, message: '이미 사용된 코드예요' },
   NOT_ENOUGH_STAMPS: { status: 400, message: '아직 스탬프가 부족해요' },
   REWARD_UNAVAILABLE: { status: 409, message: '지금은 교환할 수 없는 리워드예요' },
+  COUPON_UNAVAILABLE: { status: 409, message: '사용할 수 없는 쿠폰이에요' },
+  NO_REWARD_NOW: { status: 409, message: '지금은 바꿀 수 있는 리워드가 없어요' },
   RATE_LIMITED: { status: 429, message: '잠시 후 다시 시도해주세요' },
   SERVER_ERROR: { status: 500, message: '잠시 후 다시 시도해주세요' },
 

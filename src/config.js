@@ -41,6 +41,9 @@ module.exports = {
   qrTtlSec: int('QR_TTL_SEC', 120),
   qrAmountMax: int('QR_AMOUNT_MAX', 10),
 
+  // 쿠폰 1장으로 바꾸는 데 필요한 스탬프 수. 이 수가 차는 순간 자동으로 쿠폰이 발급된다.
+  couponStampCost: int('COUPON_STAMP_COST', 10),
+
   sessionTtlSec: int('SESSION_TTL_SEC', 31536000),
 
   lockThreshold: int('LOCK_THRESHOLD', 5),

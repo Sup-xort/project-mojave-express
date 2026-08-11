@@ -14,6 +14,8 @@ router.get('/dashboard', (req, res) => {
     pendingRedemptions: redemptionService.countPending(),
     customerCount: customerService.countAll(),
     todayApprovedRedemptions: redemptionService.countApprovedSince(since),
+    couponStampCost: config.couponStampCost,
+    storeTz: config.storeTz,
   });
 });
 

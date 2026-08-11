@@ -42,24 +42,42 @@ CREATE TABLE IF NOT EXISTS stamp_log (
 );
 CREATE INDEX IF NOT EXISTS idx_stamp_customer ON stamp_log(customer_id, created_at DESC);
 
--- 리워드 정의. 사장님이 관리자에서 등록·수정한다
+-- 리워드 정의. 사장님이 관리자에서 등록·수정한다.
+-- 쿠폰 1장으로 무엇을 받을지는 "쓰는 시점의 시각"이 어느 리워드의 시간대에 들어가느냐로 정해진다.
 CREATE TABLE IF NOT EXISTS rewards (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL,                 -- "드립 커피 1잔"
-  cost       INTEGER NOT NULL,              -- 필요 스탬프 수
+  cost       INTEGER NOT NULL,              -- 사용 안 함. 쿠폰 1장 = COUPON_STAMP_COST로 고정이라
+                                            -- 서버가 그 값을 채워 넣기만 한다 (기록용)
   start_min  INTEGER NOT NULL,              -- 0~1439, 매장 로컬 시각 기준 분
   end_min    INTEGER NOT NULL,              -- start > end 이면 자정을 넘는 구간
   active     INTEGER NOT NULL DEFAULT 1,    -- 스케줄과 무관한 수동 on/off
   sort_order INTEGER NOT NULL DEFAULT 0
 );
 
--- 리워드 교환
+-- 스탬프가 COUPON_STAMP_COST(기본 10)개 모이면 자동 발급되는 쿠폰.
+-- 발급 시점에는 "무엇으로 바꿀지"가 비어 있다 — 쓰는 시점의 시간대가 그걸 정하기 때문이다.
+CREATE TABLE IF NOT EXISTS coupons (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  status      TEXT NOT NULL,               -- 'unused' | 'pending' | 'used'
+  stamp_cost  INTEGER NOT NULL,            -- 발급 시점 스냅샷. 나중에 정책이 바뀌어도 과거 기록은 그대로
+  issued_at   INTEGER NOT NULL,
+  expires_at  INTEGER,                     -- 현재 정책은 무기한이라 항상 NULL. 만료 기능 대비 자리
+  used_at     INTEGER,
+  reward_id   INTEGER REFERENCES rewards(id),  -- 사용 확정(사장님 승인) 시점 스냅샷
+  reward_name TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_coupons_customer ON coupons(customer_id, status, issued_at DESC);
+
+-- 쿠폰 사용 요청. 사장님이 승인해야 쿠폰이 실제로 소진된다.
 CREATE TABLE IF NOT EXISTS redemptions (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   customer_id  TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  coupon_id    INTEGER REFERENCES coupons(id),
   reward_id    INTEGER NOT NULL REFERENCES rewards(id),
   reward_name  TEXT NOT NULL,               -- 요청 시점 스냅샷
-  reward_cost  INTEGER NOT NULL,            -- 요청 시점 스냅샷
+  reward_cost  INTEGER NOT NULL,            -- 요청 시점 스냅샷(쿠폰의 stamp_cost). 기록용
   status       TEXT NOT NULL,               -- 'pending' | 'approved' | 'expired' | 'cancelled'
   requested_at INTEGER NOT NULL,
   resolved_at  INTEGER
