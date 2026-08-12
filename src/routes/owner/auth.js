@@ -108,6 +108,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     ownerService.clearLock(owner.id);
+    loginAttemptService.clearAttempts(ip);
 
     const token = ownerSessionService.createSession(owner.id);
     setOwnerSessionCookie(res, token);

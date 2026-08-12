@@ -45,6 +45,8 @@ const ownerApi = {
 
   redemptions: () => ownerFetch('/api/owner/redemptions'),
   approveRedemption: (id) => ownerFetch(`/api/owner/reward/${id}/approve`, { method: 'POST' }),
+  rejectRedemption: (id) => ownerFetch(`/api/owner/reward/${id}/reject`, { method: 'POST' }),
+  pendingRedemptionCount: () => ownerFetch('/api/owner/redemptions/count'),
 
   grantStamp: (nickname, amount) =>
     ownerFetch('/api/owner/stamp/grant', { method: 'POST', body: { nickname, amount } }),
@@ -52,6 +54,8 @@ const ownerApi = {
   searchCustomers: (query) =>
     ownerFetch(`/api/owner/customers?query=${encodeURIComponent(query)}`),
   getCustomer: (id) => ownerFetch(`/api/owner/customers/${encodeURIComponent(id)}`),
+  resetCustomerPin: (id, pin) =>
+    ownerFetch(`/api/owner/customers/${encodeURIComponent(id)}/pin`, { method: 'POST', body: { pin } }),
 
   settings: () => ownerFetch('/api/owner/settings'),
   updateSettings: (patch) => ownerFetch('/api/owner/settings', { method: 'PUT', body: patch }),

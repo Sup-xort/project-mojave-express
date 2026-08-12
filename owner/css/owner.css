@@ -194,6 +194,27 @@ table.data-table th { color: var(--sub); font-weight: 500; font-size: 11px; lett
 }
 .qr-url { font-family: 'Inter'; font-size: 11px; word-break: break-all; color: var(--sub); text-align: center; max-width: 320px; }
 
+/* 적립(QR) — 수량설정 화면 */
+.qr-screen { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 32px 0 16px; }
+.keypad { display: grid; grid-template-columns: repeat(3, 64px); gap: 12px; }
+.keypad-btn {
+  width: 64px;
+  height: 56px;
+  border: 1px solid var(--line);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+}
+.keypad-btn:active { background: var(--line); }
+.qr-live-amount { font-family: 'Inter'; font-size: 20px; font-weight: 600; color: var(--accent); }
+.qr-actions { display: flex; gap: 12px; width: 100%; max-width: 320px; }
+.qr-actions .btn-secondary { flex: 1; }
+.qr-live-box-expired { color: var(--sub); font-size: 15px; }
+
+.field-inline input.input-pin { letter-spacing: 0.3em; text-align: center; }
+
 .customer-list { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); }
 .customer-row { background: var(--bg); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; text-align: left; width: 100%; }
 .customer-row .cr-name { font-size: 14px; color: var(--ink); }
@@ -242,6 +263,23 @@ table.data-table th { color: var(--sub); font-weight: 500; font-size: 11px; lett
 .owner-toast.show { opacity: 1; transform: translateY(0); }
 .owner-toast-title { font-size: 14px; font-weight: 600; color: var(--ink); }
 .owner-toast-sub { font-size: 12px; color: var(--sub); margin-top: 4px; }
+.owner-toast-actions { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+.owner-toast-actions .btn-small { flex: 1; }
+.owner-toast-x { width: 28px; height: 28px; margin-left: auto; flex: none; }
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 6px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: 600;
+}
+.tab-badge.hidden { display: none; }
 
 @media (max-width: 560px) {
   .content { padding: 16px; }

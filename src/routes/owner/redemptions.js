@@ -16,6 +16,10 @@ router.get('/redemptions', (req, res) => {
   );
 });
 
+router.get('/redemptions/count', (req, res) => {
+  res.json({ count: redemptionService.countPending() });
+});
+
 // 스탬프는 쿠폰 발급 시점에 이미 빠졌으므로 승인은 차감을 하지 않는다 (approveTx 주석 참고).
 router.post('/reward/:id/approve', (req, res, next) => {
   const id = Number(req.params.id);
@@ -26,6 +30,17 @@ router.post('/reward/:id/approve', (req, res, next) => {
     return res.json({ ok: false, status: redemption.status });
   }
   res.json({ ok: true, status: redemption.status });
+});
+
+router.post('/reward/:id/reject', (req, res, next) => {
+  const id = Number(req.params.id);
+  const ok = redemptionService.rejectTx(id);
+  if (!ok) {
+    const redemption = redemptionService.getById(id);
+    if (!redemption) return next(appError('SERVER_ERROR'));
+    return res.json({ ok: false, status: redemption.status });
+  }
+  res.json({ ok: true, status: 'rejected' });
 });
 
 module.exports = router;

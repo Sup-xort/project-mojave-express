@@ -14,6 +14,7 @@ const clearLockStmt = db.prepare(
 const recordFailureStmt = db.prepare(
   'UPDATE customers SET failed_count = ? , locked_until = ? WHERE id = ?'
 );
+const updatePinHashStmt = db.prepare('UPDATE customers SET pin_hash = ? WHERE id = ?');
 const searchByNicknameStmt = db.prepare(`
   SELECT * FROM customers WHERE nickname_key LIKE ? ESCAPE '\\' ORDER BY nickname_key LIMIT ?
 `);
@@ -57,6 +58,12 @@ function recordFailure(id, failedCount, lockedUntil) {
   recordFailureStmt.run(failedCount, lockedUntil, id);
 }
 
+// PIN 분실 시 사장님이 대면으로 재설정한다. 개인정보를 안 받는 앱이라 매장에서 직접
+// 확인하는 것 자체가 본인확인 수단이다.
+function updatePinHash(id, pinHash) {
+  updatePinHashStmt.run(pinHash, id);
+}
+
 // 스탬프 가감은 stampService(적립·수동지급)와 couponService(쿠폰 변환) 안에서만 한다.
 // 두 곳 다 트랜잭션 안에서 처리해야 해서 여기에 범용 헬퍼를 두면 트랜잭션 밖에서 불릴 위험이 있다.
 
@@ -80,6 +87,7 @@ module.exports = {
   getCardNo,
   clearLock,
   recordFailure,
+  updatePinHash,
   searchByNickname,
   countAll,
 };

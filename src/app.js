@@ -20,7 +20,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/owner', express.static(path.join(__dirname, '..', 'owner')));
 
-app.use('/api', apiRateLimit({ windowMs: 60_000, max: 120 }));
+app.use('/api', apiRateLimit({ windowMs: 60_000, max: 300 }));
 app.use('/api', attachSession);
 app.use('/api/owner', attachOwnerSession);
 

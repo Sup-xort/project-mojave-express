@@ -5,6 +5,27 @@ let rewardPollTimer = null;
 let rewardTickTimer = null;
 let bannerTimer = null;
 
+// ---- 홈 화면에 추가 ----
+// Android/Chrome은 beforeinstallprompt를 잡아뒀다가 버튼 클릭 시 그 자리에서 띄운다.
+// iOS Safari는 이 이벤트 자체가 없어서 "공유 → 홈 화면에 추가" 안내만 보여준다.
+let deferredInstallPrompt = null;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.classList.remove('hidden');
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -42,6 +63,13 @@ const themeIconSvg = `
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
     <circle cx="12" cy="12" r="5"></circle>
     <path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"></path>
+  </svg>
+`;
+
+const installIconSvg = `
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+    <path d="M12 3v12M7 10l5 5 5-5" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round"></path>
   </svg>
 `;
 
@@ -91,7 +119,7 @@ function loadJsQR() {
   if (jsQRLoadPromise) return jsQRLoadPromise;
   jsQRLoadPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    s.src = '/vendor/jsQR.js';
     s.onload = () => resolve();
     s.onerror = () => reject(new Error('스캐너를 불러오지 못했어요'));
     document.head.appendChild(s);
@@ -354,6 +382,11 @@ function renderHome(me, coupons) {
       <div class="home-topbar">
         <div class="brand-mark">${markSvg}MOJAVE EXPRESS</div>
         <div class="home-topbar-actions">
+          ${
+            !isStandalone() && (deferredInstallPrompt || isIOS())
+              ? `<button id="install-btn" class="icon-btn" aria-label="홈 화면에 추가">${installIconSvg}</button>`
+              : ''
+          }
           <button id="theme-toggle" class="icon-btn" aria-label="화면 밝기 전환">${themeIconSvg}</button>
         </div>
       </div>
@@ -415,6 +448,20 @@ function renderHome(me, coupons) {
   `;
 
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
+  const installBtn = document.getElementById('install-btn');
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        installBtn.classList.add('hidden');
+      } else if (isIOS()) {
+        flash('공유 버튼 → "홈 화면에 추가"를 눌러주세요', 'info');
+      }
+    });
+  }
 
   document.getElementById('logout-btn').addEventListener('click', async () => {
     try {
@@ -724,6 +771,7 @@ function renderRewardWait(pending) {
       }
       if (status.status === 'expired') flash('시간이 지나 요청이 취소됐어요. 쿠폰은 그대로 있어요', 'error');
       else if (status.status === 'cancelled') flash('요청을 취소했어요', 'info');
+      else if (status.status === 'rejected') flash('사장님이 요청을 거절했어요. 쿠폰은 그대로 있어요', 'error');
       await goHome();
     } catch (err) {
       stopRewardPoll();

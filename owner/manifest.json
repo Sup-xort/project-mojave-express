@@ -1,0 +1,13 @@
+{
+  "name": "모하비 익스프레스 — 사장님",
+  "short_name": "모하비 사장님",
+  "start_url": "/owner/",
+  "scope": "/owner/",
+  "display": "standalone",
+  "background_color": "#F5F4F1",
+  "theme_color": "#F5F4F1",
+  "icons": [
+    { "src": "/owner/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/owner/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

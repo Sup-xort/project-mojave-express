@@ -8,6 +8,9 @@ const claimQrStmt = db.prepare(`
   WHERE token = ? AND used_by IS NULL AND expires_at >= ?
 `);
 const findQrStmt = db.prepare('SELECT * FROM qr_tokens WHERE token = ?');
+const findLogByTokenStmt = db.prepare(
+  'SELECT * FROM stamp_log WHERE qr_token = ? AND customer_id = ?'
+);
 const insertLogStmt = db.prepare(`
   INSERT INTO stamp_log (customer_id, qr_token, amount, created_at)
   VALUES (?, ?, ?, ?)
@@ -32,7 +35,19 @@ const redeemQr = db.transaction((customerId, token) => {
   if (result.changes === 0) {
     const row = findQrStmt.get(token);
     if (!row) return { ok: false, reason: 'INVALID_QR' };
-    if (row.used_by) return { ok: false, reason: 'ALREADY_USED' };
+    if (row.used_by) {
+      // 같은 손님이 같은 토큰으로 재시도한 것이면(응답 유실 등) 이미 성공한 결과를
+      // 그대로 다시 돌려준다 — ALREADY_USED로 막으면 통신이 끊긴 손님만 손해를 본다.
+      // 쿠폰 발급은 최초 성공 시점에 이미 일어났으므로 여기서는 재통지하지 않는다(0).
+      if (row.used_by === customerId) {
+        const log = findLogByTokenStmt.get(token, customerId);
+        if (log) {
+          const stamps = getStampsStmt.get(customerId).stamps;
+          return { ok: true, added: log.amount, stamps, couponsIssued: 0 };
+        }
+      }
+      return { ok: false, reason: 'ALREADY_USED' };
+    }
     return { ok: false, reason: 'EXPIRED_QR' };
   }
 

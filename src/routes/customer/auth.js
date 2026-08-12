@@ -99,6 +99,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     customerService.clearLock(customer.id);
+    loginAttemptService.clearAttempts(ip);
 
     const token = sessionService.createSession(customer.id);
     setSessionCookie(res, token);

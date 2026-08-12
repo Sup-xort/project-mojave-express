@@ -73,6 +73,17 @@ function listPending() {
   return listPendingStmt.all();
 }
 
+// 팝업의 "취소" = 사장님의 즉시 거절. cancelTx와 동일하게 쿠폰을 unused로 되돌리지만,
+// 손님 자진취소와 구분하기 위해 상태값은 다르게(rejected) 남긴다. status는 CHECK 없는
+// TEXT 컬럼이라 스키마 변경 없이 새 문자열 값만 추가하면 된다.
+const rejectTx = db.transaction((id) => {
+  const redemption = findByIdStmt.get(id);
+  if (!redemption || redemption.status !== 'pending') return false;
+  setStatusStmt.run('rejected', nowUnix(), id);
+  if (redemption.coupon_id) couponService.release(redemption.coupon_id);
+  return true;
+});
+
 // 5.3/5.4/5.6: 트랜잭션 안에서 pending을 재확인한 뒤 처리한다.
 // 스탬프는 쿠폰을 발급할 때 이미 빠졌다 — 여기서 또 빼면 이중 차감이라 스탬프가 음수가 된다.
 // 승인이 하는 일은 쿠폰을 'used'로 확정하고 그 시점의 리워드를 새겨넣는 것뿐이다.
@@ -125,6 +136,7 @@ module.exports = {
   createRequestTx,
   getById,
   cancelTx,
+  rejectTx,
   listPending,
   approveTx,
   expireStale,
