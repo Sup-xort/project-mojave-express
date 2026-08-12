@@ -10,6 +10,7 @@ const BG = '#F5F4F1';
 const INK = '#171614';
 const ACCENT = '#E4572E';
 
+// purpose:"any"용 — 배경까지 꽉 채운 원래 마크. 브라우저 탭/즐겨찾기 등 안 잘리는 곳에 쓰인다.
 function svg(size) {
   const cx = size / 2;
   const cy = size / 2;
@@ -22,19 +23,37 @@ function svg(size) {
   </svg>`;
 }
 
+// purpose:"maskable"용 — OS가 원/스퀴클 등으로 잘라내므로 핵심 그림을 중앙 80% 안전영역
+// (반지름 0.4×size) 안쪽으로 더 작게 그린다. 배경은 동일하게 전체를 채운다.
+function svgMaskable(size) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const r1 = size * 0.32;
+  const r2 = size * 0.06;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <rect width="${size}" height="${size}" fill="${BG}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r1}" fill="none" stroke="${INK}" stroke-width="${size * 0.035}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r2}" fill="${ACCENT}"/>
+  </svg>`;
+}
+
 const targets = [
-  ['public/icons/icon-192.png', 192],
-  ['public/icons/icon-512.png', 512],
-  ['public/icons/apple-touch-icon.png', 180],
-  ['owner/icons/icon-192.png', 192],
-  ['owner/icons/icon-512.png', 512],
-  ['owner/icons/apple-touch-icon.png', 180],
+  ['public/icons/icon-192.png', 192, svg],
+  ['public/icons/icon-512.png', 512, svg],
+  ['public/icons/icon-192-maskable.png', 192, svgMaskable],
+  ['public/icons/icon-512-maskable.png', 512, svgMaskable],
+  ['public/icons/apple-touch-icon.png', 180, svg],
+  ['owner/icons/icon-192.png', 192, svg],
+  ['owner/icons/icon-512.png', 512, svg],
+  ['owner/icons/icon-192-maskable.png', 192, svgMaskable],
+  ['owner/icons/icon-512-maskable.png', 512, svgMaskable],
+  ['owner/icons/apple-touch-icon.png', 180, svg],
 ];
 
 (async () => {
-  for (const [outPath, size] of targets) {
+  for (const [outPath, size, render] of targets) {
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
-    await sharp(Buffer.from(svg(size))).png().toFile(outPath);
+    await sharp(Buffer.from(render(size))).png().toFile(outPath);
     console.log('wrote', outPath);
   }
 })();
