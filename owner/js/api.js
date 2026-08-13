@@ -37,6 +37,8 @@ const ownerApi = {
   dashboard: () => ownerFetch('/api/owner/dashboard'),
 
   issueQr: (amount) => ownerFetch('/api/owner/qr', { method: 'POST', body: { amount } }),
+  revokeQr: (token) =>
+    ownerFetch(`/api/owner/qr/${encodeURIComponent(token)}`, { method: 'DELETE' }),
 
   rewards: () => ownerFetch('/api/owner/rewards'),
   createReward: (reward) => ownerFetch('/api/owner/rewards', { method: 'POST', body: reward }),

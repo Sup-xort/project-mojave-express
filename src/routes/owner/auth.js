@@ -12,8 +12,19 @@ const {
 const ownerService = require('../../services/ownerService');
 const ownerSessionService = require('../../services/ownerSessionService');
 const loginAttemptService = require('../../services/loginAttemptService');
+const settingsService = require('../../services/settingsService');
 
 const router = express.Router();
+
+// 적립 탭이 기본 화면이라 로그인 직후 곧바로 그려진다. 그 화면에 필요한 값(개수 상한, 발급 방식)을
+// 세션이 열리는 모든 응답에 실어 보내면 별도 왕복 없이 첫 렌더부터 올바른 화면을 그릴 수 있다.
+function sessionPayload(username) {
+  return {
+    username,
+    qrAmountMax: config.qrAmountMax,
+    qrInstantIssue: settingsService.getQrInstantIssue(),
+  };
+}
 
 const PASSWORD_MIN_LEN = 8;
 const PASSWORD_MAX_LEN = 72; // bcrypt는 72바이트를 넘으면 조용히 잘라버리므로 그 전에 막는다.
@@ -62,7 +73,7 @@ router.post('/setup', async (req, res, next) => {
 
     const token = ownerSessionService.createSession(owner.id);
     setOwnerSessionCookie(res, token);
-    res.json({ username: owner.username });
+    res.json(sessionPayload(owner.username));
   } catch (err) {
     next(err);
   }
@@ -112,7 +123,7 @@ router.post('/login', async (req, res, next) => {
 
     const token = ownerSessionService.createSession(owner.id);
     setOwnerSessionCookie(res, token);
-    res.json({ username: owner.username });
+    res.json(sessionPayload(owner.username));
   } catch (err) {
     next(err);
   }
@@ -125,7 +136,7 @@ router.post('/logout', requireOwnerAuth, (req, res) => {
 });
 
 router.get('/me', requireOwnerAuth, (req, res) => {
-  res.json({ username: req.owner.username });
+  res.json(sessionPayload(req.owner.username));
 });
 
 router.post('/password', requireOwnerAuth, async (req, res, next) => {

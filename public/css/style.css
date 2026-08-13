@@ -29,7 +29,13 @@ html, body {
   transition: background 0.25s ease, color 0.25s ease;
 }
 
-button { cursor: pointer; font-family: inherit; }
+button {
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none; /* 연타할 때 버튼 글자가 선택되지 않도록 */
+}
 input { font-family: inherit; }
 input::placeholder { opacity: 0.4; }
 input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -43,11 +49,13 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); ou
   text-transform: uppercase;
 }
 
+/* 더블탭 확대만 끄고 스크롤·핀치줌은 남긴다(user-scalable=no는 접근성을 해치므로 쓰지 않는다) */
 #app {
   max-width: 420px;
   margin: 0 auto;
   min-height: 100vh;
   padding: 40px 24px 48px;
+  touch-action: manipulation;
 }
 
 .center-loading {

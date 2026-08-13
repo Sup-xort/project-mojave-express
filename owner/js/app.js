@@ -203,6 +203,14 @@ function beep() {
 
 // ---------- 부트스트랩 ----------
 
+// 로그인·최초설정·세션복구 응답은 모두 같은 모양이다. 적립 탭이 곧바로 그려지므로
+// 화면을 그리기 전에 여기서 한 번에 반영한다.
+function applySession(me) {
+  currentUsername = me.username;
+  if (Number.isInteger(me.qrAmountMax) && me.qrAmountMax > 0) qrAmountMax = me.qrAmountMax;
+  qrInstantIssue = me.qrInstantIssue === true;
+}
+
 async function boot() {
   applyNight();
   let status;
@@ -219,8 +227,7 @@ async function boot() {
   }
 
   try {
-    const me = await ownerApi.me();
-    currentUsername = me.username;
+    applySession(await ownerApi.me());
     renderShell();
   } catch (err) {
     renderLogin();
@@ -283,8 +290,7 @@ function renderSetup() {
     }
 
     try {
-      await ownerApi.setup(username, password);
-      currentUsername = username;
+      applySession(await ownerApi.setup(username, password));
       renderShell();
     } catch (err) {
       errorEl.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
@@ -329,8 +335,7 @@ function renderLogin() {
     const errorEl = document.getElementById('li-error');
     errorEl.innerHTML = '';
     try {
-      const me = await ownerApi.login(username, password);
-      currentUsername = me.username;
+      applySession(await ownerApi.login(username, password));
       renderShell();
     } catch (err) {
       errorEl.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
@@ -347,7 +352,7 @@ function renderShell() {
   clearAppState();
   appEl.innerHTML = `
     <div class="shell-header">
-      <div class="shell-brand">${logoSvg(18)}<span>MOJAVE EXPRESS · 사장님</span></div>
+      <div class="shell-brand">${logoSvg(18)}<span>MOJAVE EXPRESS · OWNER</span></div>
       <div class="shell-actions">
         <button id="night-toggle" class="icon-btn" aria-label="화면 밝기 전환">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="stroke:var(--ink)" stroke-width="1.4"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"></path></svg>
@@ -418,15 +423,22 @@ async function renderDashboardTab(content) {
 }
 
 // ---------- 적립 (QR) ----------
-// QR을 상시로 띄워두면 누구든 먼저 스캔해 스탬프를 훔쳐갈 수 있다. 이제는
-// "수량 설정 → 발급 버튼 → QR 표시"를 명시적으로 거친다. QR 표시 화면은 손님에게 보여주는
-// 화면이라 디자인에 신경 쓰고 닫기/재생성 버튼을 둔다. 닫기·재생성은 서버에 아무 요청도
-// 보내지 않는다 — 지금 발급된 토큰은 그대로 살아있고, 오직 TTL 만료만 그걸 못 쓰게 만든다.
-// 만료 시에도 자동으로 재발급을 반복하지 않는다(예전엔 매초 재시도해 폭주했다) — 수동으로
-// "재생성" → "발급"을 눌러야 새 토큰이 나온다.
+// QR을 상시로 띄워두면 누구든 먼저 스캔해 스탬프를 훔쳐갈 수 있다. 그래서 "개수 선택 → QR 표시"를
+// 명시적으로 거친다. 개수는 1~qrAmountMax 타일을 직접 고른다 — 예전엔 키패드로 자릿수를 쌓아
+// 올렸는데, 1이 떠 있는 상태에서 3을 누르면 13이 되는 데다 상한(서버의 QR_AMOUNT_MAX)을
+// 넘겨도 발급 버튼을 눌러야 거절당했다. 고를 수 있는 값만 화면에 두면 둘 다 생기지 않는다.
+//
+// 타일을 탭했을 때 곧바로 발급할지(1탭) 발급 버튼을 한 번 더 누를지(2탭)는 설정에서 고른다.
+//
+// QR 표시 화면의 두 버튼은 하는 일이 다르다:
+//   닫기          — 화면만 돌아간다. 지금 뜬 토큰은 살아있다(손님이 아직 스캔 중일 수 있다).
+//   삭제 후 재발급 — 서버에서 토큰을 지운다. 개수를 잘못 골랐을 때 즉시 회수하는 통로다.
+// 만료 시 자동 재발급은 하지 않는다(예전엔 매초 재시도해 폭주했다) — 수동으로 눌러야 한다.
 
 let qrScreen = 'amount'; // 'amount' | 'live' | 'expired'
-let qrKeypadBuffer = '';
+let qrAmountMax = 10; // 부팅 시 /me 응답으로 덮어쓴다
+let qrInstantIssue = false; // 개수 타일 한 번으로 바로 발급할지
+let qrToken = '';
 let qrDataUrl = '';
 let qrUrl = '';
 let qrExpiresAt = 0;
@@ -439,49 +451,46 @@ function renderQrTab(content) {
   else renderQrAmountScreen(content);
 }
 
-function renderQrAmountScreen(content) {
+function issueLabel() {
+  return `${qrAmount}개 적립 QR 발급`;
+}
+
+function renderQrAmountScreen(content, errorMessage) {
   qrScreen = 'amount';
-  qrKeypadBuffer = String(qrAmount);
+  if (qrAmount > qrAmountMax) qrAmount = 1; // 상한이 줄어든 뒤 남아있던 값 방어
+  const tiles = [];
+  for (let n = 1; n <= qrAmountMax; n += 1) {
+    tiles.push(
+      `<button class="amount-tile" data-amount="${n}" aria-pressed="${n === qrAmount}">${n}</button>`
+    );
+  }
   content.innerHTML = `
     <div class="qr-screen">
-      <div class="qr-stepper">
-        <button id="qr-minus" class="stepper-btn" aria-label="수량 줄이기">−</button>
-        <div class="qr-amount" id="qr-amount-display">${qrAmount}</div>
-        <button id="qr-plus" class="stepper-btn" aria-label="수량 늘리기">+</button>
-      </div>
-      <div class="keypad" id="qr-keypad">
-        ${['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', ''].map(
-          (k) => (k ? `<button class="keypad-btn" data-key="${k}">${k}</button>` : `<span></span>`)
-        ).join('')}
-      </div>
-      <div id="qr-error"></div>
-      <button id="qr-issue" class="btn-primary">발급</button>
+      <div class="qr-kicker">적립할 스탬프 개수</div>
+      ${qrInstantIssue ? `<div class="qr-hint">탭하면 바로 QR이 떠요</div>` : ''}
+      <div class="amount-grid" id="qr-amount-grid">${tiles.join('')}</div>
+      <div id="qr-error">${errorMessage ? `<div class="error-text">${esc(errorMessage)}</div>` : ''}</div>
+      ${qrInstantIssue ? '' : `<button id="qr-issue" class="btn-primary">${issueLabel()}</button>`}
     </div>
   `;
-  document.getElementById('qr-minus').addEventListener('click', () => adjustQrAmount(-1));
-  document.getElementById('qr-plus').addEventListener('click', () => adjustQrAmount(1));
-  document.getElementById('qr-keypad').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-key]');
+  document.getElementById('qr-amount-grid').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-amount]');
     if (!btn) return;
-    if (btn.dataset.key === '⌫') qrKeypadBuffer = qrKeypadBuffer.slice(0, -1);
-    else qrKeypadBuffer = (qrKeypadBuffer === '0' ? '' : qrKeypadBuffer) + btn.dataset.key;
-    syncQrAmountFromBuffer();
+    selectQrAmount(Number(btn.dataset.amount));
+    if (qrInstantIssue) issueQrAndShow();
   });
-  document.getElementById('qr-issue').addEventListener('click', issueQrAndShow);
+  const issueBtn = document.getElementById('qr-issue');
+  if (issueBtn) issueBtn.addEventListener('click', issueQrAndShow);
 }
 
-function syncQrAmountFromBuffer() {
-  const n = Number(qrKeypadBuffer || '0');
-  qrAmount = n >= 1 ? n : 1;
-  const display = document.getElementById('qr-amount-display');
-  if (display) display.textContent = qrKeypadBuffer ? qrAmount : 1;
-}
-
-function adjustQrAmount(delta) {
-  qrAmount = Math.max(1, qrAmount + delta);
-  qrKeypadBuffer = String(qrAmount);
-  const display = document.getElementById('qr-amount-display');
-  if (display) display.textContent = qrAmount;
+// 다시 그리지 않고 선택 표시와 버튼 문구만 바꾼다 — 연타해도 화면이 깜빡이지 않는다.
+function selectQrAmount(n) {
+  qrAmount = n;
+  document.querySelectorAll('#qr-amount-grid [data-amount]').forEach((el) => {
+    el.setAttribute('aria-pressed', String(Number(el.dataset.amount) === n));
+  });
+  const issueBtn = document.getElementById('qr-issue');
+  if (issueBtn) issueBtn.textContent = issueLabel();
 }
 
 async function issueQrAndShow() {
@@ -493,6 +502,7 @@ async function issueQrAndShow() {
   if (issueBtn) issueBtn.disabled = true;
   try {
     const issued = await ownerApi.issueQr(qrAmount);
+    qrToken = issued.token;
     qrDataUrl = issued.qrDataUrl;
     qrUrl = issued.url;
     qrExpiresAt = issued.expiresAt;
@@ -509,29 +519,46 @@ function renderQrLiveScreen(content) {
   qrScreen = 'live';
   content.innerHTML = `
     <div class="qr-live">
+      <div class="qr-live-amount"><strong>${qrAmount}</strong><span>개 적립</span></div>
       <div class="qr-live-box"><img src="${qrDataUrl}" alt="QR 코드" /></div>
       <div class="qr-countdown" id="qr-countdown"></div>
-      <div class="qr-live-amount">${qrAmount}개 적립</div>
       <div class="qr-url">${esc(qrUrl)}</div>
       <div class="qr-actions">
         <button id="qr-close" class="btn-secondary">닫기</button>
-        <button id="qr-regen" class="btn-secondary">재생성</button>
+        <button id="qr-revoke" class="btn-secondary btn-danger">삭제 후 재발급</button>
       </div>
     </div>
   `;
   document.getElementById('qr-close').addEventListener('click', backToAmountScreen);
-  document.getElementById('qr-regen').addEventListener('click', backToAmountScreen);
+  document.getElementById('qr-revoke').addEventListener('click', revokeQrAndBack);
   clearInterval(qrTimer);
   tickQr();
   qrTimer = setInterval(tickQr, 1000);
 }
 
-// 닫기·재생성 둘 다 수량 설정 화면으로 돌아갈 뿐이다 — 서버에는 아무 요청도 보내지 않는다.
-// 지금 떠 있는 토큰은 이 함수가 지우지 않는다. TTL이 지나야만 무효화된다
+// 화면만 돌아간다. 지금 떠 있던 토큰은 그대로 살아있고 TTL이 지나야 무효화된다
 // (redeemQr의 expires_at 조건, qrService.purgeExpired 크론).
 function backToAmountScreen() {
   clearInterval(qrTimer);
+  qrToken = '';
   renderQrAmountScreen(document.getElementById('content'));
+}
+
+// 개수를 잘못 골랐을 때. 서버에서 토큰을 지워 손님이 더는 스캔할 수 없게 만든다.
+async function revokeQrAndBack() {
+  const revokeBtn = document.getElementById('qr-revoke');
+  if (revokeBtn) revokeBtn.disabled = true;
+  const token = qrToken;
+  let failure = '';
+  try {
+    if (token) await ownerApi.revokeQr(token);
+  } catch (err) {
+    // 삭제에 실패하면 그 QR은 아직 살아있다 — 사장님이 알아야 하므로 수량 화면에 그대로 띄운다.
+    failure = `이전 QR을 삭제하지 못했어요 (${err.message}). 남은 시간이 지나면 자동으로 만료돼요.`;
+  }
+  clearInterval(qrTimer);
+  qrToken = '';
+  renderQrAmountScreen(document.getElementById('content'), failure);
 }
 
 function tickQr() {
@@ -956,6 +983,34 @@ async function loadCouponPolicy() {
   }
 }
 
+// 발급 방식은 기기별 취향이 아니라 매장 운영 방식이므로 서버 settings에 저장한다 —
+// 사장님이 다른 기기로 로그인해도 같은 방식으로 뜬다.
+function bindQrModeChoice() {
+  const radios = Array.from(document.querySelectorAll('input[name="qr-mode"]'));
+  radios.forEach((radio) => {
+    radio.addEventListener('change', async () => {
+      if (!radio.checked) return;
+      const next = radio.value === 'instant';
+      const previous = qrInstantIssue;
+      const resultEl = document.getElementById('qr-mode-result');
+      resultEl.innerHTML = '';
+      radios.forEach((r) => (r.disabled = true));
+      try {
+        await ownerApi.updateSettings({ qrInstantIssue: next });
+        qrInstantIssue = next;
+        resultEl.innerHTML = `<div class="success-text">저장했어요</div>`;
+      } catch (err) {
+        // 저장에 실패했는데 화면만 바뀌어 있으면 사장님이 착각한다. 선택을 되돌린다.
+        const revert = radios.find((r) => (r.value === 'instant') === previous);
+        if (revert) revert.checked = true;
+        resultEl.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
+      } finally {
+        radios.forEach((r) => (r.disabled = false));
+      }
+    });
+  });
+}
+
 function renderSettingsTab(content) {
   content.innerHTML = `
     <h1>설정</h1>
@@ -971,6 +1026,24 @@ function renderSettingsTab(content) {
       <div id="pw-result"></div>
     </div>
     <div class="card">
+      <div class="section-title">적립 화면</div>
+      <label class="choice-row">
+        <input type="radio" name="qr-mode" value="confirm" ${qrInstantIssue ? '' : 'checked'} />
+        <span class="choice-text">
+          <span class="choice-title">개수를 고르고 발급 버튼 누르기</span>
+          <span class="choice-sub">손님 앞에서 개수를 한 번 더 확인할 수 있어요</span>
+        </span>
+      </label>
+      <label class="choice-row">
+        <input type="radio" name="qr-mode" value="instant" ${qrInstantIssue ? 'checked' : ''} />
+        <span class="choice-text">
+          <span class="choice-title">개수를 탭하면 바로 QR 뜨기</span>
+          <span class="choice-sub">가장 빠르지만 잘못 누르면 QR이 이미 나가요</span>
+        </span>
+      </label>
+      <div id="qr-mode-result"></div>
+    </div>
+    <div class="card">
       <div class="section-title">쿠폰 정책</div>
       <div id="coupon-policy" class="empty-msg">불러오는 중...</div>
     </div>
@@ -980,6 +1053,7 @@ function renderSettingsTab(content) {
   `;
 
   loadCouponPolicy();
+  bindQrModeChoice();
 
   document.getElementById('pw-submit').addEventListener('click', async () => {
     const current = document.getElementById('pw-current').value;

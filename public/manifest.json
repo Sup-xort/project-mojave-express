@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "모하비 익스프레스 스탬프",
-  "short_name": "모하비 익스프레스",
+  "name": "MOJAVE",
+  "short_name": "MOJAVE",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

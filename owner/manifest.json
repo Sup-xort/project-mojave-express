@@ -1,7 +1,7 @@
 {
   "id": "/owner/",
-  "name": "모하비 익스프레스 — 사장님",
-  "short_name": "모하비 사장님",
+  "name": "MOJAVE for OWNER",
+  "short_name": "MOJAVE OWNER",
   "start_url": "/owner/",
   "scope": "/owner/",
   "display": "standalone",

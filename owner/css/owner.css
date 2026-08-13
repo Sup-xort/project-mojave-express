@@ -13,6 +13,10 @@ body.night {
   --ink: #f5f4f1;
   --sub: rgba(245, 244, 241, 0.6);
   --line: rgba(245, 244, 241, 0.16);
+  /* :root의 --btn-bg는 :root의 --ink로 이미 확정돼버린다. 야간에도 ink 반전을 유지하려면
+     여기서 다시 선언해야 한다 — 안 하면 어두운 배경 위에 어두운 버튼이 깔려 안 보인다. */
+  --btn-bg: var(--ink);
+  --btn-text: var(--bg);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,7 +27,16 @@ body {
   font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   transition: background 0.2s ease, color 0.2s ease;
 }
-button { cursor: pointer; border: none; background: none; font-family: inherit; color: inherit; }
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none; /* 연타할 때 버튼 글자가 선택되지 않도록 */
+}
 input, select { font-family: inherit; color: inherit; }
 input::placeholder { opacity: 0.45; }
 ::selection { background: var(--accent); color: var(--bg); }
@@ -33,7 +46,9 @@ input:focus-visible, button:focus-visible, select:focus-visible {
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-#app { min-height: 100vh; display: flex; flex-direction: column; }
+/* 카운터에서는 버튼을 연타하게 된다. touch-action으로 더블탭 확대만 끄고 스크롤·핀치줌은 남긴다
+   (user-scalable=no는 확대 자체를 막아 접근성을 해치므로 쓰지 않는다). */
+#app { min-height: 100vh; display: flex; flex-direction: column; touch-action: manipulation; }
 
 /* 로그인 / 최초 설정 화면 */
 .auth-screen {
@@ -171,46 +186,51 @@ table.data-table th { color: var(--sub); font-weight: 500; font-size: 11px; lett
 }
 .qr-live-box img { width: 100%; height: 100%; }
 .qr-countdown { font-family: 'Inter'; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
-.qr-stepper { display: flex; align-items: center; gap: 28px; }
-.stepper-btn {
-  width: 64px;
-  height: 64px;
-  border: 1px solid var(--line);
-  font-size: 30px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink);
-}
-.stepper-btn:active { background: var(--line); }
-.qr-amount {
-  font-family: 'Inter';
-  font-size: 44px;
-  font-weight: 600;
-  min-width: 64px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
 .qr-url { font-family: 'Inter'; font-size: 11px; word-break: break-all; color: var(--sub); text-align: center; max-width: 320px; }
 
-/* 적립(QR) — 수량설정 화면 */
-.qr-screen { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 32px 0 16px; }
-.keypad { display: grid; grid-template-columns: repeat(3, 64px); gap: 12px; }
-.keypad-btn {
-  width: 64px;
-  height: 56px;
+/* 적립(QR) — 개수 선택 화면. 고를 수 있는 값만 타일로 둔다(키패드 자릿수 누적 없음) */
+.qr-screen { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 32px 0 16px; }
+.qr-kicker { font-size: 12px; color: var(--sub); letter-spacing: 0.02em; }
+.qr-hint { font-size: 12px; color: var(--sub); margin-top: -14px; }
+.amount-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+}
+.amount-tile {
+  aspect-ratio: 1;
   border: 1px solid var(--line);
-  font-size: 20px;
+  font-family: 'Inter';
+  font-size: 24px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--ink);
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
-.keypad-btn:active { background: var(--line); }
-.qr-live-amount { font-family: 'Inter'; font-size: 20px; font-weight: 600; color: var(--accent); }
+.amount-tile:active { background: var(--line); }
+/* 선택 상태는 accent가 아니라 ink 반전 — .btn-primary와 같은 언어라 화면이 흑백으로 정리된다 */
+.amount-tile[aria-pressed='true'] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.qr-screen .btn-primary { max-width: 340px; }
+
+/* 개수는 정보이지 경고가 아니다 — accent 대신 타이포 크기로 위계를 만든다 */
+.qr-live-amount { display: flex; align-items: baseline; gap: 6px; color: var(--ink); }
+.qr-live-amount strong {
+  font-family: 'Inter';
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.qr-live-amount span { font-size: 14px; color: var(--sub); }
 .qr-actions { display: flex; gap: 12px; width: 100%; max-width: 320px; }
 .qr-actions .btn-secondary { flex: 1; }
+/* 빨강은 되돌릴 수 없는 동작에만 쓴다 */
+.btn-danger { color: var(--accent); }
 .qr-live-box-expired { color: var(--sub); font-size: 15px; }
 
 .field-inline input.input-pin { letter-spacing: 0.3em; text-align: center; }
@@ -229,6 +249,11 @@ table.data-table th { color: var(--sub); font-weight: 500; font-size: 11px; lett
 .ttl-unit { font-size: 14px; color: var(--sub); padding-bottom: 10px; }
 .ttl-forever { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 13px; color: var(--sub); cursor: pointer; }
 .ttl-forever input { width: 16px; height: 16px; accent-color: var(--accent); }
+.choice-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; cursor: pointer; }
+.choice-row input { width: 18px; height: 18px; margin-top: 1px; accent-color: var(--ink); flex-shrink: 0; }
+.choice-text { display: flex; flex-direction: column; gap: 3px; }
+.choice-title { font-size: 14px; color: var(--ink); }
+.choice-sub { font-size: 12px; color: var(--sub); line-height: 1.5; }
 .empty-msg { color: var(--sub); font-size: 13px; padding: 16px 0; }
 .notice { font-size: 12px; color: var(--sub); margin-top: 8px; }
 .success-text { font-size: 12px; color: var(--accent); margin-top: 8px; }

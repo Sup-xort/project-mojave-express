@@ -9,6 +9,8 @@ const insertStmt = db.prepare(`
 `);
 const findStmt = db.prepare('SELECT * FROM qr_tokens WHERE token = ?');
 const purgeStmt = db.prepare('DELETE FROM qr_tokens WHERE expires_at < ?');
+// 이미 소진된 토큰은 지우지 않는다 — stamp_log와 대조할 수 있게 남겨둔다.
+const revokeStmt = db.prepare('DELETE FROM qr_tokens WHERE token = ? AND used_at IS NULL');
 
 // 4.2: 사장님 패드가 결제 건마다 수량을 정해 발급한다.
 function issueToken(amount) {
@@ -23,9 +25,14 @@ function findByToken(token) {
   return findStmt.get(token);
 }
 
+// 개수를 잘못 골라 발급했을 때 사장님이 즉시 회수하는 통로. TTL을 기다릴 필요가 없다.
+function revokeToken(token) {
+  return revokeStmt.run(token).changes;
+}
+
 // 4.2: 만료·소진된 토큰은 크론으로 정리한다. QR_TTL이 짧으므로 만료 기준 하나로 충분하다.
 function purgeExpired() {
   purgeStmt.run(nowUnix());
 }
 
-module.exports = { issueToken, findByToken, purgeExpired };
+module.exports = { issueToken, findByToken, revokeToken, purgeExpired };
