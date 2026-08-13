@@ -719,40 +719,50 @@ function renderManualStampEntry() {
 
 // ---- 화면: 쿠폰 사용 승인 대기 (plan.md 5.3) ----
 
+// 화면은 한 번만 그린다. 매초 appEl 전체를 다시 그리면 .screen의 fadeIn이 그때마다 처음부터
+// 재생돼 화면이 깜빡인다(그리고 취소 버튼 리스너도 매초 다시 붙는다). 틱은 숫자만 갈아끼운다.
+function tickRewardWait(expiresAt) {
+  const el = document.getElementById('reward-countdown');
+  if (!el) {
+    stopRewardPoll(); // 화면을 벗어났는데 아직 살아있던 타이머면 여기서 정리한다
+    return;
+  }
+  const remain = Math.max(0, expiresAt - Math.floor(Date.now() / 1000));
+  const mm = String(Math.floor(remain / 60)).padStart(2, '0');
+  const ss = String(remain % 60).padStart(2, '0');
+  // 0에 닿아도 화면을 바꾸지 않는다 — 실제 만료 처리는 아래 폴링이 'expired'로 받아서 한다.
+  el.textContent = `${mm}:${ss}`;
+}
+
 function renderRewardWait(pending) {
   stopRewardPoll();
   stopScan();
 
-  const render = () => {
-    const remain = Math.max(0, pending.expiresAt - Math.floor(Date.now() / 1000));
-    const mm = String(Math.floor(remain / 60)).padStart(2, '0');
-    const ss = String(remain % 60).padStart(2, '0');
-    appEl.innerHTML = `
-      <div class="screen wait-screen">
-        <svg width="72" height="72" viewBox="0 0 40 40" aria-hidden="true">
-          <circle cx="20" cy="20" r="18" fill="none" stroke="var(--accent)" stroke-width="1.2"></circle>
-          <circle cx="20" cy="20" r="12" fill="var(--accent)"></circle>
-        </svg>
-        <div>
-          <div class="wait-title">사장님께 요청했어요</div>
-          <p class="subtitle">"${esc(pending.rewardName)}" 교환을 승인해주실 때까지 기다려주세요.</p>
-        </div>
-        <div class="countdown">${mm}:${ss}</div>
-        <button id="cancel-btn" class="link-btn">요청 취소</button>
+  appEl.innerHTML = `
+    <div class="screen wait-screen">
+      <svg width="72" height="72" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="18" fill="none" stroke="var(--accent)" stroke-width="1.2"></circle>
+        <circle cx="20" cy="20" r="12" fill="var(--accent)"></circle>
+      </svg>
+      <div>
+        <div class="wait-title">사장님께 요청했어요</div>
+        <p class="subtitle">"${esc(pending.rewardName)}" 교환을 승인해주실 때까지 기다려주세요.</p>
       </div>
-    `;
-    document.getElementById('cancel-btn').addEventListener('click', async () => {
-      stopRewardPoll();
-      try {
-        await api.rewardCancel();
-      } finally {
-        await goHome();
-      }
-    });
-  };
+      <div class="countdown" id="reward-countdown"></div>
+      <button id="cancel-btn" class="link-btn">요청 취소</button>
+    </div>
+  `;
+  document.getElementById('cancel-btn').addEventListener('click', async () => {
+    stopRewardPoll();
+    try {
+      await api.rewardCancel();
+    } finally {
+      await goHome();
+    }
+  });
 
-  render();
-  rewardTickTimer = setInterval(render, 1000);
+  tickRewardWait(pending.expiresAt);
+  rewardTickTimer = setInterval(() => tickRewardWait(pending.expiresAt), 1000);
 
   rewardPollTimer = setInterval(async () => {
     try {
