@@ -27,6 +27,8 @@ const api = {
   me: () => apiFetch('/api/me'),
   signup: (nickname, pin) => apiFetch('/api/signup', { method: 'POST', body: { nickname, pin } }),
   login: (nickname, pin) => apiFetch('/api/login', { method: 'POST', body: { nickname, pin } }),
+  checkNickname: (nickname) => apiFetch(`/api/nickname-check?nickname=${encodeURIComponent(nickname)}`),
+  suggestNickname: () => apiFetch('/api/nickname-suggestion'),
   logout: () => apiFetch('/api/logout', { method: 'POST' }),
   rewards: () => apiFetch('/api/rewards'),
   stamp: (token) => apiFetch('/api/stamp', { method: 'POST', body: { token } }),

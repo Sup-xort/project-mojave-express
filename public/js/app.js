@@ -180,12 +180,9 @@ async function afterAuth(me) {
 
 // ---- 화면: 가입/로그인 ----
 
-function renderAuth(prefillNickname, mode) {
+function renderAuth(prefillNickname) {
   stopRewardPoll();
   stopScan();
-  const hasNickname = !!prefillNickname;
-  let currentMode = mode || (hasNickname ? 'login' : 'signup');
-  const isLogin = currentMode === 'login';
 
   appEl.innerHTML = `
     <div class="screen auth-screen">
@@ -193,46 +190,162 @@ function renderAuth(prefillNickname, mode) {
         <div class="auth-head">
           ${markSvg}
           <div class="brand-kicker" style="margin-top:20px;">MOJAVE EXPRESS</div>
-          <div class="auth-title">${isLogin ? '로그인' : '별명을 알려주세요'}</div>
-          ${!isLogin ? '<p class="subtitle">실명 대신 별명을 지어주세요</p>' : ''}
+          <div class="auth-title">별명을 알려주세요</div>
+          <p class="subtitle">실명 대신 별명을 지어주세요</p>
         </div>
-        <form id="auth-form" class="card">
-          <div>
-            <label class="field-label" for="f-nickname">별명</label>
-            <input id="f-nickname" type="text" maxlength="12" autocomplete="off"
-                   value="${esc(prefillNickname)}" placeholder="예) 밤의 산책자" required />
+        <div class="auth-track-clip">
+        <div class="auth-track" id="auth-track">
+          <div class="auth-step" id="step-nickname">
+            <form id="nickname-form" class="card">
+              <div>
+                <label class="field-label" for="f-nickname">별명</label>
+                <div class="input-wrap">
+                  <input id="f-nickname" type="text" maxlength="12" autocomplete="off"
+                         value="${esc(prefillNickname || '')}" placeholder="예) 밤의 산책자" required />
+                  <button type="button" id="btn-random" class="input-inline-btn" aria-label="랜덤 별명 만들기">🎲</button>
+                </div>
+                <p id="nickname-status" class="field-status hidden"></p>
+              </div>
+            </form>
+            <div class="auth-actions">
+              <button type="submit" form="nickname-form" id="btn-next" class="primary-btn" disabled>가입하기</button>
+            </div>
           </div>
-          <div>
-            <label class="field-label" for="f-pin">PIN (4자리)</label>
-            <input id="f-pin" class="input-pin" type="password" inputmode="numeric" pattern="[0-9]*"
-                   maxlength="4" autocomplete="off" placeholder="••••" required />
+          <div class="auth-step" id="step-pin">
+            <button type="button" class="back-btn" id="btn-back">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"></path></svg>
+              별명 다시 입력
+            </button>
+            <form id="pin-form" class="card">
+              <div>
+                <label class="field-label" for="f-pin">PIN (4자리)</label>
+                <input id="f-pin" class="input-pin" type="password" inputmode="numeric" pattern="[0-9]*"
+                       maxlength="4" autocomplete="off" placeholder="••••" required />
+              </div>
+              <div id="pin-confirm-wrap" class="hidden">
+                <label class="field-label" for="f-pin-confirm">PIN 확인</label>
+                <input id="f-pin-confirm" class="input-pin" type="password" inputmode="numeric" pattern="[0-9]*"
+                       maxlength="4" autocomplete="off" placeholder="••••" />
+              </div>
+              <div id="auth-error" class="error-msg hidden"></div>
+            </form>
+            <div class="auth-actions">
+              <button type="submit" form="pin-form" id="auth-submit" class="primary-btn">확인</button>
+            </div>
           </div>
-          <div id="auth-error" class="error-msg hidden"></div>
-        </form>
-      </div>
-      <div class="auth-actions">
-        <button type="submit" form="auth-form" id="auth-submit" class="primary-btn">${isLogin ? '로그인' : '시작하기'}</button>
-        <button type="button" id="auth-switch" class="link-btn">${isLogin ? '처음이신가요? 별명 만들기' : '이미 별명이 있나요? 로그인'}</button>
+        </div>
+        </div>
       </div>
       <p class="hint">이름·전화번호는 받지 않아요. 별명과 PIN만으로 이용해요.<br />
-      PIN을 잊으면 계정을 되찾을 방법이 없으니 잘 기억해주세요.</p>
+      PIN을 잊었을 시 직원에게 문의해주세요.</p>
     </div>
   `;
 
+  const nicknameInput = document.getElementById('f-nickname');
+  const statusEl = document.getElementById('nickname-status');
+  const nextBtn = document.getElementById('btn-next');
+  const track = document.getElementById('auth-track');
+  const pinConfirmWrap = document.getElementById('pin-confirm-wrap');
+  const pinConfirmInput = document.getElementById('f-pin-confirm');
+  const pinInput = document.getElementById('f-pin');
   const submitBtn = document.getElementById('auth-submit');
   const errorEl = document.getElementById('auth-error');
 
-  document.getElementById('auth-switch').addEventListener('click', () => {
-    renderAuth(document.getElementById('f-nickname').value, isLogin ? 'signup' : 'login');
+  let mode = null; // 'login' | 'signup', 별명 중복확인 결과로 정해짐
+  let checkSeq = 0;
+  let debounceTimer = null;
+
+  function applyCheckResult(valid, exists) {
+    if (!valid) {
+      mode = null;
+      nextBtn.disabled = true;
+      statusEl.classList.add('hidden');
+      return;
+    }
+    if (exists) {
+      mode = 'login';
+      statusEl.textContent = '이미 존재하는 이름이에요';
+      statusEl.classList.remove('hidden');
+      nextBtn.textContent = '로그인';
+    } else {
+      mode = 'signup';
+      statusEl.classList.add('hidden');
+      nextBtn.textContent = '가입하기';
+    }
+    nextBtn.disabled = false;
+  }
+
+  async function runCheck(value) {
+    const seq = ++checkSeq;
+    if (!value.trim()) {
+      applyCheckResult(false);
+      return;
+    }
+    try {
+      const res = await api.checkNickname(value);
+      if (seq !== checkSeq) return; // 그 사이 더 최신 입력이 있었으면 무시
+      applyCheckResult(res.valid, res.exists);
+    } catch (err) {
+      if (seq !== checkSeq) return;
+      applyCheckResult(false);
+    }
+  }
+
+  nicknameInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const value = nicknameInput.value;
+    debounceTimer = setTimeout(() => runCheck(value), 400);
   });
 
-  document.getElementById('auth-form').addEventListener('submit', async (e) => {
+  document.getElementById('btn-random').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const { nickname } = await api.suggestNickname();
+      clearTimeout(debounceTimer);
+      checkSeq += 1; // 진행 중이던 디바운스 응답은 무시
+      nicknameInput.value = nickname;
+      // 생성 시점에 서버가 이미 중복확인을 마친 별명이므로 재조회 없이 바로 가입 가능 상태로.
+      applyCheckResult(true, false);
+    } catch (err) {
+      // 실패해도 별명은 직접 입력할 수 있으니 조용히 무시.
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  function goToPinStep() {
+    pinConfirmWrap.classList.toggle('hidden', mode !== 'signup');
+    pinConfirmInput.required = mode === 'signup';
+    errorEl.classList.add('hidden');
+    pinInput.value = '';
+    pinConfirmInput.value = '';
+    submitBtn.disabled = false;
+    track.classList.add('at-pin');
+    setTimeout(() => pinInput.focus(), 300);
+  }
+
+  document.getElementById('nickname-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const nickname = document.getElementById('f-nickname').value;
-    const pin = document.getElementById('f-pin').value;
+    if (mode) goToPinStep();
+  });
+
+  document.getElementById('btn-back').addEventListener('click', () => {
+    track.classList.remove('at-pin');
+  });
+
+  document.getElementById('pin-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nickname = nicknameInput.value;
+    const pin = pinInput.value;
+    if (mode === 'signup' && pin !== pinConfirmInput.value) {
+      errorEl.textContent = 'PIN이 서로 달라요';
+      errorEl.classList.remove('hidden');
+      return;
+    }
     submitBtn.disabled = true;
     try {
-      const me = isLogin ? await api.login(nickname, pin) : await api.signup(nickname, pin);
+      const me = mode === 'login' ? await api.login(nickname, pin) : await api.signup(nickname, pin);
       await afterAuth(me);
     } catch (err) {
       errorEl.textContent = err.message;
@@ -240,6 +353,8 @@ function renderAuth(prefillNickname, mode) {
       submitBtn.disabled = false;
     }
   });
+
+  if (prefillNickname) runCheck(prefillNickname);
 }
 
 function renderFatal(err) {

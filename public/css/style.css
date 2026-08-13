@@ -213,6 +213,48 @@ button { font-family: inherit; }
   text-align: center;
 }
 
+/* 별명 → PIN 2단계 슬라이드 */
+.auth-track-clip {
+  overflow: hidden;
+}
+.auth-track {
+  display: flex;
+  width: 200%;
+  transition: transform 0.3s ease;
+}
+.auth-track.at-pin {
+  transform: translateX(-50%);
+}
+.auth-step {
+  width: 50%;
+  flex-shrink: 0;
+}
+
+.input-wrap {
+  position: relative;
+}
+.input-wrap input {
+  padding-right: 32px;
+}
+.input-inline-btn {
+  position: absolute;
+  right: 0;
+  bottom: 6px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+}
+.input-inline-btn:disabled { opacity: 0.4; cursor: default; }
+
+.field-status {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--sub);
+}
+
 /* 홈 화면 */
 .home-screen { padding-top: 0; }
 

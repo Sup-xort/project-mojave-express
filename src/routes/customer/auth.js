@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const config = require('../../config');
 const { validateNickname } = require('../../utils/nickname');
+const { randomNickname } = require('../../utils/nicknameGenerator');
 const { nowUnix } = require('../../utils/time');
 const { appError } = require('../../middleware/errors');
 const { setSessionCookie, clearSessionCookie, requireAuth } = require('../../middleware/session');
@@ -20,6 +21,30 @@ const DUMMY_HASH = bcrypt.hashSync(`__no_such_account__${config.pinPepper}`, 12)
 function clientIp(req) {
   return req.ip || 'unknown';
 }
+
+router.get('/nickname-check', (req, res) => {
+  const v = validateNickname(req.query.nickname);
+  if (!v.ok) return res.json({ valid: false });
+  const exists = !!customerService.findByNicknameKey(v.key);
+  res.json({ valid: true, exists });
+});
+
+const SUGGESTION_ATTEMPTS = 20;
+
+router.get('/nickname-suggestion', (req, res) => {
+  let candidate = randomNickname();
+  for (let i = 0; i < SUGGESTION_ATTEMPTS; i += 1) {
+    if (i > 0) candidate = randomNickname();
+    const v = validateNickname(candidate);
+    if (v.ok && !customerService.findByNicknameKey(v.key)) {
+      return res.json({ nickname: v.nickname });
+    }
+  }
+  // 20회 모두 충돌하는 건 사실상 불가능하지만, 그런 경우에도 가입 시도 자체는
+  // /signup의 NICKNAME_TAKEN 처리로 안전하게 막히므로 재확인 없이 그대로 내려준다.
+  const fallback = `${candidate}${Math.floor(Math.random() * 90 + 10)}`;
+  res.json({ nickname: fallback });
+});
 
 router.post('/signup', async (req, res, next) => {
   try {
