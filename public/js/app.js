@@ -41,7 +41,7 @@ function currentTheme() {
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', theme === 'night' ? '#181715' : '#F5F4F1');
+  if (meta) meta.setAttribute('content', theme === 'night' ? '#0F0F10' : '#FBFAF8');
 }
 
 function toggleTheme() {
@@ -72,6 +72,73 @@ const installIconSvg = `
     <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round"></path>
   </svg>
 `;
+
+const chevronSvg = `
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+    <path d="M9 5l7 7-7 7"></path>
+  </svg>
+`;
+
+const backArrowSvg = `
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+    <path d="M15 5l-7 7 7 7"></path>
+  </svg>
+`;
+
+// 로고 락업 — 원래 쓰던 동그란 마크 + Pretendard MOJAVE EXPRESS 그대로다.
+const brandLockup = `<div class="brand-mark">${markSvg}MOJAVE EXPRESS</div>`;
+
+// 홈에 들어올 때마다 하나를 고른다. 순전히 인사일 뿐이라 상태로 남기지 않는다.
+const GREETINGS = [
+  '안녕하세요, 조용한 밤이에요.',
+  '오늘도 늦게까지 열어둘게요.',
+  '반가워요, 모하비 익스프레스예요.',
+  '해가 아직 남았어요. 커피 어떠세요?',
+  '느긋하게 머물다 가세요.',
+];
+
+function pickGreeting() {
+  return GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+}
+
+// 스탬프 수는 두 자리로 맞춰 보여준다 — 07 / 10 처럼 자릿수가 흔들리지 않는다.
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+// ---- PIN 4칸 입력 ----
+// 보이는 것은 칸 4개뿐이고, 실제 입력은 그 위를 통째로 덮은 투명한 input 하나가 받는다.
+// 칸 아무 데나 눌러도 그 input에 포커스가 가므로 칸별로 focus를 옮기는 처리가 필요 없다.
+function pinFieldHtml(id) {
+  const cells = Array.from({ length: 4 }, () => '<span class="pin-cell"></span>').join('');
+  return `
+    <div class="pin-field" data-pin-field>
+      ${cells}
+      <input id="${id}" class="input-pin" type="password" inputmode="numeric" pattern="[0-9]*"
+             maxlength="4" autocomplete="off"${id === 'f-pin' ? ' required' : ''} />
+    </div>
+  `;
+}
+
+function syncPinCells(input) {
+  const field = input.closest('[data-pin-field]');
+  if (!field) return;
+  const filled = input.value.length;
+  field.querySelectorAll('.pin-cell').forEach((cell, i) => {
+    cell.textContent = i < filled ? '•' : '';
+    cell.classList.toggle('is-next', i === filled);
+  });
+}
+
+function bindPinCells(input) {
+  input.addEventListener('input', () => {
+    // 숫자 키패드를 띄워도 하드웨어 키보드로는 문자가 들어올 수 있다.
+    const digitsOnly = input.value.replace(/\D/g, '').slice(0, 4);
+    if (digitsOnly !== input.value) input.value = digitsOnly;
+    syncPinCells(input);
+  });
+  syncPinCells(input);
+}
 
 function flash(message, kind = 'info') {
   bannerEl.textContent = message;
@@ -187,21 +254,19 @@ function renderAuth(prefillNickname) {
   appEl.innerHTML = `
     <div class="screen auth-screen">
       <div class="auth-body">
-        <div class="auth-head">
-          ${markSvg}
-          <div class="brand-kicker" style="margin-top:20px;">MOJAVE EXPRESS</div>
-          <div class="auth-title">별명을 알려주세요</div>
-          <p class="subtitle">실명 대신 별명을 지어주세요</p>
-        </div>
+        <div class="auth-head">${brandLockup}</div>
         <div class="auth-track-clip">
         <div class="auth-track" id="auth-track">
           <div class="auth-step" id="step-nickname">
-            <form id="nickname-form" class="card">
+            <div class="kicker">01 — NICKNAME</div>
+            <div class="display auth-title">별명을 알려주세요</div>
+            <p class="subtitle">실명 대신 별명 하나면 돼요.<br />이름·전화번호는 받지 않아요.</p>
+            <form id="nickname-form" class="card" style="margin-top:34px;">
               <div>
-                <label class="field-label" for="f-nickname">별명</label>
                 <div class="input-wrap">
                   <input id="f-nickname" type="text" maxlength="12" autocomplete="off"
-                         value="${esc(prefillNickname || '')}" placeholder="예) 밤의 산책자" required />
+                         value="${esc(prefillNickname || '')}" placeholder="예) 밤의 산책자" required
+                         aria-label="별명" />
                   <button type="button" id="btn-random" class="input-inline-btn" aria-label="랜덤 별명 만들기">🎲</button>
                 </div>
                 <p id="nickname-status" class="field-status hidden"></p>
@@ -212,31 +277,29 @@ function renderAuth(prefillNickname) {
             </div>
           </div>
           <div class="auth-step" id="step-pin">
-            <button type="button" class="back-btn" id="btn-back">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"></path></svg>
-              별명 다시 입력
-            </button>
-            <form id="pin-form" class="card">
+            <div class="kicker" id="pin-kicker">02 — SIGN UP</div>
+            <div class="display auth-title" id="pin-title">PIN을 정해주세요</div>
+            <p class="subtitle" id="pin-sub">숫자 4자리만 정하면 바로 시작해요.</p>
+            <form id="pin-form" class="card" style="margin-top:34px;">
               <div>
                 <label class="field-label" for="f-pin">PIN (4자리)</label>
-                <input id="f-pin" class="input-pin" type="password" inputmode="numeric" pattern="[0-9]*"
-                       maxlength="4" autocomplete="off" placeholder="••••" required />
+                ${pinFieldHtml('f-pin')}
               </div>
               <div id="pin-confirm-wrap" class="hidden">
                 <label class="field-label" for="f-pin-confirm">PIN 확인</label>
-                <input id="f-pin-confirm" class="input-pin" type="password" inputmode="numeric" pattern="[0-9]*"
-                       maxlength="4" autocomplete="off" placeholder="••••" />
+                ${pinFieldHtml('f-pin-confirm')}
               </div>
               <div id="auth-error" class="error-msg hidden"></div>
             </form>
             <div class="auth-actions">
               <button type="submit" form="pin-form" id="auth-submit" class="primary-btn">확인</button>
+              <button type="button" class="link-btn" id="btn-back">별명 다시 입력</button>
             </div>
           </div>
         </div>
         </div>
       </div>
-      <p class="hint">이름·전화번호는 받지 않아요. 별명과 PIN만으로 이용해요.<br />
+      <p class="hint">별명과 PIN만으로 이용해요.<br />
       PIN을 잊었을 시 직원에게 문의해주세요.</p>
     </div>
   `;
@@ -250,6 +313,12 @@ function renderAuth(prefillNickname) {
   const pinInput = document.getElementById('f-pin');
   const submitBtn = document.getElementById('auth-submit');
   const errorEl = document.getElementById('auth-error');
+  const pinKickerEl = document.getElementById('pin-kicker');
+  const pinTitleEl = document.getElementById('pin-title');
+  const pinSubEl = document.getElementById('pin-sub');
+
+  bindPinCells(pinInput);
+  bindPinCells(pinConfirmInput);
 
   let mode = null; // 'login' | 'signup', 별명 중복확인 결과로 정해짐
   let checkSeq = 0;
@@ -315,14 +384,28 @@ function renderAuth(prefillNickname) {
   });
 
   function goToPinStep() {
+    const isLogin = mode === 'login';
+    const nick = nicknameInput.value.trim();
+
     pinConfirmWrap.classList.toggle('hidden', mode !== 'signup');
     pinConfirmInput.required = mode === 'signup';
     errorEl.classList.add('hidden');
     pinInput.value = '';
     pinConfirmInput.value = '';
+    syncPinCells(pinInput);
+    syncPinCells(pinConfirmInput);
     submitBtn.disabled = false;
+
+    // 같은 두 번째 화면이지만 처음 온 손님과 다시 온 손님에게 하는 말이 다르다.
+    pinKickerEl.textContent = isLogin ? '02 — LOGIN' : '02 — SIGN UP';
+    pinTitleEl.textContent = isLogin ? `${nick} 님, 다시 오셨네요` : 'PIN을 정해주세요';
+    pinSubEl.textContent = isLogin
+      ? '별명에 걸어둔 숫자 4자리를 입력해주세요.'
+      : `"${nick}"은 아직 없는 별명이에요. 숫자 4자리만 정하면 바로 시작해요.`;
+    submitBtn.textContent = isLogin ? '로그인' : '가입하고 시작하기';
+
     track.classList.add('at-pin');
-    setTimeout(() => pinInput.focus(), 300);
+    setTimeout(() => pinInput.focus(), 520); // 슬라이드가 끝난 뒤에 키보드를 올린다
   }
 
   document.getElementById('nickname-form').addEventListener('submit', (e) => {
@@ -370,8 +453,9 @@ function stampGridHtml(stamps, target) {
   let cells = '';
   for (let i = 0; i < target; i += 1) {
     const filled = i < filledCount;
-    const isNew = filled && i === filledCount - 1;
-    cells += `<span class="dot${filled ? ' filled' : ''}${isNew ? ' is-new' : ''}"></span>`;
+    // 칸이 순서대로 자리를 잡는다 — 한꺼번에 나타나면 판이 아니라 벽처럼 보인다.
+    const delay = `${(i * 0.03).toFixed(3)}s`;
+    cells += `<span class="dot${filled ? ' filled' : ''}" style="animation-delay:${delay}"></span>`;
   }
   return `<div class="stamp-grid">${cells}</div>`;
 }
@@ -495,7 +579,7 @@ function renderHome(me, coupons) {
   appEl.innerHTML = `
     <div class="screen home-screen">
       <div class="home-topbar">
-        <div class="brand-mark">${markSvg}MOJAVE EXPRESS</div>
+        ${brandLockup}
         <div class="home-topbar-actions">
           ${
             !isStandalone() && (deferredInstallPrompt || isIOS())
@@ -506,41 +590,45 @@ function renderHome(me, coupons) {
         </div>
       </div>
 
+      <div class="home-greeting">${esc(pickGreeting())}</div>
+
       <div class="home-meta">
         <div>
           <div class="home-nickname">${esc(me.nickname)} 님</div>
           <div class="home-cardno">전표번호 ${esc(me.cardNo || '')}</div>
         </div>
-        <button id="logout-btn" class="link-btn" style="align-self:flex-end;">로그아웃</button>
+        <button id="logout-btn" class="link-btn">로그아웃</button>
       </div>
 
       <div class="stamp-card">
-        <div class="stamp-kicker">STAMP CARD</div>
+        <div class="kicker stamp-kicker">STAMP CARD</div>
         <div class="stamp-count">
-          <span class="stamp-count-num">${me.stamps % target}</span>
+          <span class="stamp-count-num">${pad2(me.stamps % target)}</span>
           <span class="stamp-count-den">/ ${target}</span>
         </div>
         ${stampGridHtml(me.stamps, target)}
         <div class="stamp-remain">${remainMsg}</div>
       </div>
 
-      <div class="coupon-card${me.couponCount > 0 ? ' is-active' : ''}">
-        <div class="coupon-card-main">
-          <span class="coupon-icon" aria-hidden="true">🎟</span>
-          <div>
-            <div class="coupon-count">쿠폰 ${me.couponCount}장</div>
-            <div class="coupon-sub">${
-              me.couponCount > 0
-                ? '쓰는 시간대에 따라 받을 메뉴가 정해져요'
-                : `스탬프 ${target}개를 모으면 자동으로 쿠폰이 돼요`
-            }</div>
-            ${soonestExpiry ? `<div class="coupon-expiry${soonestUrgent ? ' is-urgent' : ''}">${esc(soonestExpiry)}</div>` : ''}
-          </div>
-        </div>
-        ${me.couponCount > 0 ? '<button id="coupon-use-btn" class="primary-btn">사용하기</button>' : ''}
+      <div class="home-actions">
+        <button id="stamp-scan-btn" class="primary-btn">적립하기</button>
+        ${
+          me.couponCount > 0
+            ? `<button id="coupon-use-btn" class="ghost-btn is-active">
+                 <span class="coupon-link-main">
+                   <span>쿠폰 ${me.couponCount}장 · 지금 교환할 수 있어요</span>
+                   ${soonestExpiry ? `<span class="coupon-link-sub${soonestUrgent ? ' is-urgent' : ''}">${esc(soonestExpiry)}</span>` : ''}
+                 </span>
+                 ${chevronSvg}
+               </button>`
+            : `<div class="ghost-btn">
+                 <span class="coupon-link-main">
+                   <span>쿠폰 0장</span>
+                   <span class="coupon-link-sub">스탬프 ${target}개를 모으면 자동으로 쿠폰이 돼요</span>
+                 </span>
+               </div>`
+        }
       </div>
-
-      <button id="stamp-scan-btn" class="stamp-manual-btn">QR 스캔하기</button>
 
       <section class="rewards-section">
         <h2>시간대별 리워드</h2>
@@ -612,7 +700,7 @@ function renderCouponUse(coupons) {
 
   const body = available.length
     ? `
-      <p class="subtitle">지금 바꿀 수 있어요${available.length > 1 ? ' — 하나를 골라주세요' : ''}</p>
+      <div class="kicker choice-kicker">지금 바꿀 수 있어요${available.length > 1 ? ' — 하나를 골라주세요' : ''}</div>
       <ul class="choice-list">
         ${available
           .map(
@@ -629,10 +717,11 @@ function renderCouponUse(coupons) {
           )
           .join('')}
       </ul>
-      <button id="coupon-submit" class="primary-btn">사장님께 요청</button>
+      <button id="coupon-submit" class="primary-btn">교환 요청하기</button>
     `
     : `
       <p class="subtitle">지금은 바꿀 수 있는 리워드가 없어요.<br />아래 시간에 다시 와주세요.</p>
+      <div class="kicker choice-kicker">다른 시간대</div>
       <ul class="reward-list">
         ${closed.map(rewardItemHtml).join('') || '<li class="reward-empty">등록된 리워드가 없어요</li>'}
       </ul>
@@ -640,20 +729,18 @@ function renderCouponUse(coupons) {
 
   appEl.innerHTML = `
     <div class="screen coupon-screen">
-      <button class="back-btn" id="back-btn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"></path></svg>
-        쿠폰 사용
-      </button>
+      <button class="back-btn" id="back-btn">${backArrowSvg}쿠폰 사용</button>
       <div class="coupon-ticket">
-        <span class="coupon-icon" aria-hidden="true">🎟</span>
-        <div>
-          <div class="coupon-ticket-text">쿠폰 ${coupons.unused.length}장 중 1장</div>
-          ${
-            coupon.expiresAt
-              ? `<div class="coupon-expiry${daysUntil(coupon.expiresAt) <= 7 ? ' is-urgent' : ''}">${esc(expiryLabel(coupon.expiresAt))}</div>`
-              : ''
-          }
+        <div class="coupon-ticket-kicker">COUPON</div>
+        <div class="coupon-ticket-count">
+          <span class="coupon-ticket-num">${pad2(coupons.unused.length)}</span>
+          <span class="coupon-ticket-unit">장</span>
         </div>
+        ${
+          coupon.expiresAt
+            ? `<div class="coupon-expiry${daysUntil(coupon.expiresAt) <= 7 ? ' is-urgent' : ''}">${esc(expiryLabel(coupon.expiresAt))}</div>`
+            : ''
+        }
       </div>
       ${body}
     </div>
@@ -688,15 +775,16 @@ function renderCouponDone(info) {
 
   appEl.innerHTML = `
     <div class="screen done-screen">
-      <svg class="done-mark" width="84" height="84" viewBox="0 0 40 40" aria-hidden="true">
-        <circle cx="20" cy="20" r="18" fill="none" stroke="var(--accent)" stroke-width="1.2"></circle>
-        <path d="M12 20.5l5.5 5.5L28 15" fill="none" stroke="var(--accent)" stroke-width="2.4"
-              stroke-linecap="round" stroke-linejoin="round"></path>
-      </svg>
-      <div>
-        <div class="done-title">사용 완료</div>
-        <p class="subtitle">"${esc(info.rewardName || '리워드')}"로 교환됐어요.</p>
+      <div class="pulse-ring">
+        <span class="pulse-ring-inner"></span>
+        <svg class="done-mark" width="40" height="40" viewBox="0 0 24 24" fill="none"
+             stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M5 12.5l4.5 4.5L19 7.5"></path>
+        </svg>
       </div>
+      <div class="done-title">사용 완료</div>
+      <p class="subtitle">"${esc(info.rewardName || '리워드')}"로 교환됐어요.<br />좋은 밤 보내세요.</p>
       ${info.usedAt ? `<div class="done-time">${formatUsedAt(info.usedAt)}</div>` : ''}
       <button id="done-btn" class="primary-btn">확인</button>
     </div>
@@ -713,10 +801,7 @@ function renderScan() {
 
   appEl.innerHTML = `
     <div class="screen scan-screen">
-      <button class="back-btn" id="back-btn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"></path></svg>
-        QR 스캔
-      </button>
+      <button class="back-btn" id="back-btn">${backArrowSvg}QR 스캔</button>
       <div class="scan-body">
         <div class="scan-viewport">
           <video id="scan-video" playsinline muted></video>
@@ -727,7 +812,7 @@ function renderScan() {
           <span class="scanline"></span>
         </div>
         <div class="scan-hint" id="scan-status">카메라를 켜는 중...</div>
-        <button type="button" id="scan-manual-link" class="link-btn">코드를 직접 입력할게요</button>
+        <button type="button" id="scan-manual-link" class="ghost-btn">코드를 직접 입력할게요</button>
       </div>
     </div>
   `;
@@ -803,10 +888,7 @@ function renderManualStampEntry() {
 
   appEl.innerHTML = `
     <div class="screen scan-screen">
-      <button class="back-btn" id="back-btn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"></path></svg>
-        코드 입력
-      </button>
+      <button class="back-btn" id="back-btn">${backArrowSvg}코드 입력</button>
       <p class="subtitle">매장 화면 하단에 표시된 코드를 입력해주세요.</p>
       <form id="stamp-form" class="manual-entry-body">
         <input id="f-token" class="code-field" type="text" autocomplete="off" placeholder="코드" required />
@@ -855,15 +937,12 @@ function renderRewardWait(pending) {
 
   appEl.innerHTML = `
     <div class="screen wait-screen">
-      <svg width="72" height="72" viewBox="0 0 40 40" aria-hidden="true">
-        <circle cx="20" cy="20" r="18" fill="none" stroke="var(--accent)" stroke-width="1.2"></circle>
-        <circle cx="20" cy="20" r="12" fill="var(--accent)"></circle>
-      </svg>
-      <div>
-        <div class="wait-title">사장님께 요청했어요</div>
-        <p class="subtitle">"${esc(pending.rewardName)}" 교환을 승인해주실 때까지 기다려주세요.</p>
+      <div class="pulse-ring">
+        <span class="pulse-ring-inner"></span>
+        <span class="countdown" id="reward-countdown"></span>
       </div>
-      <div class="countdown" id="reward-countdown"></div>
+      <div class="wait-title">사장님께 요청했어요</div>
+      <p class="subtitle">"${esc(pending.rewardName)}" 교환을 승인해주실 때까지<br />이 화면에서 기다려주세요.</p>
       <button id="cancel-btn" class="link-btn">요청 취소</button>
     </div>
   `;

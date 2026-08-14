@@ -1,5 +1,11 @@
 const appEl = document.getElementById('app');
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/owner/sw.js').catch(() => {});
+  });
+}
+
 const TABS = [
   { id: 'qr', label: '적립' },
   { id: 'dashboard', label: '대시보드' },
