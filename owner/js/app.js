@@ -903,7 +903,7 @@ async function loadCustomerDetail(id) {
       </div>
       <div class="card">
         <div class="section-title">PIN 초기화</div>
-        <p class="field-hint">PIN을 초기화하면 기존 PIN은 즉시 무효가 돼요. 손님은 앱에서 별명을 다시 입력해 새 PIN을 정할 수 있어요.</p>
+        <p class="hint-text">PIN을 초기화하면 기존 PIN은 즉시 무효가 돼요. 손님은 앱에서 별명을 다시 입력해 새 PIN을 정할 수 있어요.</p>
         <button id="pin-reset-submit" class="btn-secondary">PIN 초기화</button>
         <div id="pin-reset-result"></div>
       </div>
