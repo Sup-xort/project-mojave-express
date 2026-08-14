@@ -17,4 +17,13 @@ function broadcast(event, data) {
   }
 }
 
-module.exports = { addClient, removeClient, broadcast };
+// 종료할 때 쓴다. SSE는 사장님 앱이 계속 붙들고 있는 연결이라 서버가 먼저 끊어주지 않으면
+// 영원히 열려 있다. 사장님 앱의 EventSource는 연결이 끊기면 알아서 재연결한다.
+function closeAll() {
+  for (const res of clients) {
+    res.end();
+  }
+  clients.clear();
+}
+
+module.exports = { addClient, removeClient, broadcast, closeAll };

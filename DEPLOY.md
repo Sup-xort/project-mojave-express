@@ -110,6 +110,36 @@ sudo systemctl enable --now mojave-backup.timer
 - 사장님 앱 [설정] → 쿠폰 유효기간을 며칠로 저장 → **그 뒤에 발급된** 쿠폰에만 만료일이 붙고
   기존 쿠폰은 무기한 그대로인지 (손님 홈의 쿠폰 카드에 "YYYY.MM.DD까지" 표시)
 
+## 9. 스왑 — 메모리 1GB급 인스턴스라면
+
+OCI Always Free 인스턴스는 메모리가 1GB 안팎이고 기본적으로 스왑이 없다. 앱 자체는 30MB밖에
+안 쓰지만, 배포 중의 `npm ci`나 서버에서 같이 돌리는 다른 작업이 메모리를 채우면 커널이
+페이지 캐시를 버렸다 읽었다 반복하며(kswapd) 서버 전체가 기어간다. 실제로 이 상태에서
+load average가 17까지 올라 요청이 간헐적으로 타임아웃된 적이 있다.
+
+스왑은 속도를 올려주지 않는다. 느려지더라도 OOM으로 죽지는 않게 하는 안전망이다.
+
+```
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+기본 `vm.swappiness=60`은 여유가 있어도 자꾸 스왑으로 밀어내므로 낮춘다.
+
+```
+echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-swappiness.conf
+sudo sysctl --system
+```
+
+확인: `free -h`에 `Swap: 2.0Gi`가 보이고 `cat /proc/sys/vm/swappiness`가 10이면 된다.
+
+`mojave-express.service`의 `MemoryMin`·`OOMScoreAdjust`가 메모리가 부족해질 때 이 앱을
+마지막까지 남기지만, 근본적으로는 서버에서 무거운 작업을 동시에 돌리지 않는 게 낫다.
+2 vCPU 기준 `uptime`의 load average가 2를 넘으면 이미 밀리는 중이다.
+
 ## 배포 후 업데이트
 
 ```

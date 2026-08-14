@@ -11,6 +11,15 @@ ExecStart=/usr/bin/node src/server.js
 Restart=on-failure
 RestartSec=3
 
+# 종료를 오래 기다리지 않는다. graceful shutdown이 열린 연결이 닫히기를 기다리는데
+# 사장님 앱의 SSE(/api/owner/events)는 스스로 끊기지 않아서, 기본 90초를 다 기다리다
+# SIGKILL이 나고 그 뒤 WAL 복구까지 겹치면 재시작 한 번에 몇 분씩 서비스가 죽는다.
+TimeoutStopSec=15
+
+# 메모리가 빠듯한 서버(1GB급)에서 다른 작업이 메모리를 밀어붙여도 이 앱은 마지막까지 남긴다.
+MemoryMin=64M
+OOMScoreAdjust=-500
+
 # 최소 권한 하드닝
 NoNewPrivileges=true
 PrivateTmp=true
