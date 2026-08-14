@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mojave-owner-shell-v2';
+const CACHE_NAME = 'mojave-owner-shell-v3';
 const SHELL_ASSETS = [
   '/owner/',
   '/owner/css/owner.css',

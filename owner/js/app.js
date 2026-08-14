@@ -466,9 +466,10 @@ function renderQrAmountScreen(content, errorMessage) {
   if (qrAmount > qrAmountMax) qrAmount = 1; // 상한이 줄어든 뒤 남아있던 값 방어
   const tiles = [];
   for (let n = 1; n <= qrAmountMax; n += 1) {
-    tiles.push(
-      `<button class="amount-tile" data-amount="${n}" aria-pressed="${n === qrAmount}">${n}</button>`
-    );
+    // 즉시발급 모드에서 타일은 고르는 것이 아니라 곧바로 실행하는 버튼이다. 눌린 상태를
+    // 남기면 발급이 끝나고 돌아온 뒤에도 뭔가 선택돼 있는 것처럼 보인다.
+    const pressed = qrInstantIssue ? '' : ` aria-pressed="${n === qrAmount}"`;
+    tiles.push(`<button class="amount-tile" data-amount="${n}"${pressed}>${n}</button>`);
   }
   content.innerHTML = `
     <div class="qr-screen">
@@ -492,9 +493,11 @@ function renderQrAmountScreen(content, errorMessage) {
 // 다시 그리지 않고 선택 표시와 버튼 문구만 바꾼다 — 연타해도 화면이 깜빡이지 않는다.
 function selectQrAmount(n) {
   qrAmount = n;
-  document.querySelectorAll('#qr-amount-grid [data-amount]').forEach((el) => {
-    el.setAttribute('aria-pressed', String(Number(el.dataset.amount) === n));
-  });
+  if (!qrInstantIssue) {
+    document.querySelectorAll('#qr-amount-grid [data-amount]').forEach((el) => {
+      el.setAttribute('aria-pressed', String(Number(el.dataset.amount) === n));
+    });
+  }
   const issueBtn = document.getElementById('qr-issue');
   if (issueBtn) issueBtn.textContent = issueLabel();
 }
