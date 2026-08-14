@@ -25,8 +25,10 @@ function clientIp(req) {
 router.get('/nickname-check', (req, res) => {
   const v = validateNickname(req.query.nickname);
   if (!v.ok) return res.json({ valid: false });
-  const exists = !!customerService.findByNicknameKey(v.key);
-  res.json({ valid: true, exists });
+  const customer = customerService.findByNicknameKey(v.key);
+  const exists = !!customer;
+  const needsReset = exists && customer.pin_hash === '';
+  res.json({ valid: true, exists, needsReset });
 });
 
 const SUGGESTION_ATTEMPTS = 20;
@@ -112,6 +114,14 @@ router.post('/login', async (req, res, next) => {
       return next(appError('ACCOUNT_LOCKED', { retryAfterSec: customer.locked_until - now }));
     }
 
+    if (customer.pin_hash === '') {
+      // 사장님이 PIN을 초기화한 계정 — /api/pin-reset으로 가야 한다.
+      // 응답을 그냥 즉시 반환하면 정상 실패(bcrypt 비교, ~700ms)보다 훨씬 빨라져서(~수 ms)
+      // 응답 시간만으로 "이 닉네임이 초기화된 계정인지"가 드러나므로, 더미 비교를 한 번 태운다.
+      await bcrypt.compare(pin + config.pinPepper, DUMMY_HASH);
+      return next(appError('INVALID_CREDENTIALS'));
+    }
+
     const match = await bcrypt.compare(pin + config.pinPepper, customer.pin_hash);
     if (!match) {
       const failedCount = customer.failed_count + 1;
@@ -125,6 +135,34 @@ router.post('/login', async (req, res, next) => {
 
     customerService.clearLock(customer.id);
     loginAttemptService.clearAttempts(ip);
+
+    const token = sessionService.createSession(customer.id);
+    setSessionCookie(res, token);
+    res.json({ nickname: customer.nickname, stamps: customer.stamps });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 사장님이 초기화한 PIN을 손님이 스스로 다시 정한다. 닉네임이 존재하고
+// pin_hash가 비어 있는 계정만 허용 — 클라이언트의 needsReset 표시를 믿지 않고 서버에서 재확인한다.
+router.post('/pin-reset', async (req, res, next) => {
+  try {
+    const { nickname, pin } = req.body || {};
+    const v = validateNickname(nickname);
+    if (!v.ok) return next(appError('INVALID_NICKNAME'));
+    if (typeof pin !== 'string' || !PIN_FORMAT.test(pin)) {
+      return next(appError('INVALID_PIN_FORMAT'));
+    }
+
+    const customer = customerService.findByNicknameKey(v.key);
+    if (!customer || customer.pin_hash !== '') {
+      return next(appError('INVALID_CREDENTIALS'));
+    }
+
+    const pinHash = await bcrypt.hash(pin + config.pinPepper, 12);
+    customerService.updatePinHash(customer.id, pinHash);
+    customerService.clearLock(customer.id);
 
     const token = sessionService.createSession(customer.id);
     setSessionCookie(res, token);

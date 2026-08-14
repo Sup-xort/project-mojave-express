@@ -18,6 +18,8 @@ const insertLogStmt = db.prepare(`
 const addStampsStmt = db.prepare(
   'UPDATE customers SET stamps = stamps + ?, last_stamp_at = ? WHERE id = ?'
 );
+// 오너 고객조회 화면의 수동 조정용. 실제 적립이 아니므로 last_stamp_at은 건드리지 않는다.
+const adjustStampsStmt = db.prepare('UPDATE customers SET stamps = stamps + ? WHERE id = ?');
 const getStampsStmt = db.prepare('SELECT stamps FROM customers WHERE id = ?');
 const listByCustomerStmt = db.prepare(
   'SELECT * FROM stamp_log WHERE customer_id = ? ORDER BY created_at DESC LIMIT ?'
@@ -74,6 +76,21 @@ const grantStamps = db.transaction((customerId, amount) => {
   return { stamps: getStampsStmt.get(customerId).stamps, couponsIssued };
 });
 
+// 오너 고객조회 화면에서의 스탬프 개수 보정. delta는 양수/음수 모두 가능.
+// read-then-write지만 better-sqlite3는 동기 호출이라 Node 이벤트 루프상 두 문장 사이에
+// 다른 요청이 끼어들 수 없다 — db.transaction은 그 위의 안전장치일 뿐이다.
+const adjustStamps = db.transaction((customerId, delta) => {
+  const current = getStampsStmt.get(customerId).stamps;
+  if (current + delta < 0) {
+    const err = new Error('NOT_ENOUGH_STAMPS');
+    err.code = 'NOT_ENOUGH_STAMPS';
+    throw err;
+  }
+  adjustStampsStmt.run(delta, customerId);
+  const couponsIssued = delta > 0 ? couponService.issueForStamps(customerId, nowUnix()) : 0;
+  return { stamps: getStampsStmt.get(customerId).stamps, couponsIssued };
+});
+
 function listByCustomer(customerId, limit = 20) {
   return listByCustomerStmt.all(customerId, limit);
 }
@@ -83,4 +100,4 @@ function sumAmountSince(sinceUnix) {
   return sumSinceStmt.get(sinceUnix).total;
 }
 
-module.exports = { redeemQr, grantStamps, listByCustomer, sumAmountSince };
+module.exports = { redeemQr, grantStamps, adjustStamps, listByCustomer, sumAmountSince };

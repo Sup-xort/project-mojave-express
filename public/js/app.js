@@ -324,14 +324,19 @@ function renderAuth(prefillNickname) {
   let checkSeq = 0;
   let debounceTimer = null;
 
-  function applyCheckResult(valid, exists) {
+  function applyCheckResult(valid, exists, needsReset) {
     if (!valid) {
       mode = null;
       nextBtn.disabled = true;
       statusEl.classList.add('hidden');
       return;
     }
-    if (exists) {
+    if (needsReset) {
+      mode = 'reset';
+      statusEl.textContent = 'PIN이 초기화된 별명이에요';
+      statusEl.classList.remove('hidden');
+      nextBtn.textContent = '계속';
+    } else if (exists) {
       mode = 'login';
       statusEl.textContent = '이미 존재하는 이름이에요';
       statusEl.classList.remove('hidden');
@@ -353,7 +358,7 @@ function renderAuth(prefillNickname) {
     try {
       const res = await api.checkNickname(value);
       if (seq !== checkSeq) return; // 그 사이 더 최신 입력이 있었으면 무시
-      applyCheckResult(res.valid, res.exists);
+      applyCheckResult(res.valid, res.exists, res.needsReset);
     } catch (err) {
       if (seq !== checkSeq) return;
       applyCheckResult(false);
@@ -385,10 +390,11 @@ function renderAuth(prefillNickname) {
 
   function goToPinStep() {
     const isLogin = mode === 'login';
+    const isReset = mode === 'reset';
     const nick = nicknameInput.value.trim();
 
-    pinConfirmWrap.classList.toggle('hidden', mode !== 'signup');
-    pinConfirmInput.required = mode === 'signup';
+    pinConfirmWrap.classList.toggle('hidden', mode !== 'signup' && mode !== 'reset');
+    pinConfirmInput.required = mode === 'signup' || mode === 'reset';
     errorEl.classList.add('hidden');
     pinInput.value = '';
     pinConfirmInput.value = '';
@@ -396,13 +402,23 @@ function renderAuth(prefillNickname) {
     syncPinCells(pinConfirmInput);
     submitBtn.disabled = false;
 
-    // 같은 두 번째 화면이지만 처음 온 손님과 다시 온 손님에게 하는 말이 다르다.
-    pinKickerEl.textContent = isLogin ? '02 — LOGIN' : '02 — SIGN UP';
-    pinTitleEl.textContent = isLogin ? `${nick} 님, 다시 오셨네요` : 'PIN을 정해주세요';
-    pinSubEl.textContent = isLogin
-      ? '별명에 걸어둔 숫자 4자리를 입력해주세요.'
-      : `"${nick}"은 아직 없는 별명이에요. 숫자 4자리만 정하면 바로 시작해요.`;
-    submitBtn.textContent = isLogin ? '로그인' : '가입하고 시작하기';
+    // 같은 두 번째 화면이지만 처음 온 손님/다시 온 손님/PIN이 초기화된 손님에게 하는 말이 다르다.
+    if (isLogin) {
+      pinKickerEl.textContent = '02 — LOGIN';
+      pinTitleEl.textContent = `${nick} 님, 다시 오셨네요`;
+      pinSubEl.textContent = '별명에 걸어둔 숫자 4자리를 입력해주세요.';
+      submitBtn.textContent = '로그인';
+    } else if (isReset) {
+      pinKickerEl.textContent = '02 — RESET';
+      pinTitleEl.textContent = `${nick} 님, PIN이 초기화됐어요`;
+      pinSubEl.textContent = '새로운 PIN 4자리를 정해주세요.';
+      submitBtn.textContent = 'PIN 설정하기';
+    } else {
+      pinKickerEl.textContent = '02 — SIGN UP';
+      pinTitleEl.textContent = 'PIN을 정해주세요';
+      pinSubEl.textContent = `"${nick}"은 아직 없는 별명이에요. 숫자 4자리만 정하면 바로 시작해요.`;
+      submitBtn.textContent = '가입하고 시작하기';
+    }
 
     track.classList.add('at-pin');
     setTimeout(() => pinInput.focus(), 520); // 슬라이드가 끝난 뒤에 키보드를 올린다
@@ -421,14 +437,19 @@ function renderAuth(prefillNickname) {
     e.preventDefault();
     const nickname = nicknameInput.value;
     const pin = pinInput.value;
-    if (mode === 'signup' && pin !== pinConfirmInput.value) {
+    if ((mode === 'signup' || mode === 'reset') && pin !== pinConfirmInput.value) {
       errorEl.textContent = 'PIN이 서로 달라요';
       errorEl.classList.remove('hidden');
       return;
     }
     submitBtn.disabled = true;
     try {
-      const me = mode === 'login' ? await api.login(nickname, pin) : await api.signup(nickname, pin);
+      const me =
+        mode === 'login'
+          ? await api.login(nickname, pin)
+          : mode === 'reset'
+            ? await api.pinReset(nickname, pin)
+            : await api.signup(nickname, pin);
       await afterAuth(me);
     } catch (err) {
       errorEl.textContent = err.message;

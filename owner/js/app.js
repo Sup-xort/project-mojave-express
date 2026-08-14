@@ -862,7 +862,7 @@ async function loadCustomerDetail(id) {
       <div class="card detail-panel">
         <div class="detail-head">
           <span class="dh-name">${esc(c.nickname)} <span class="cr-meta">#${esc(c.cardNo)}</span></span>
-          <span class="dh-stamps">스탬프 ${c.stamps}개 · 🎟 ${c.couponCount}장</span>
+          <span class="dh-stamps" id="dh-stamps">스탬프 ${c.stamps}개 · 🎟 ${c.couponCount}장</span>
         </div>
         <div class="section-title">최근 적립 내역</div>
         <table class="data-table">
@@ -891,29 +891,50 @@ async function loadCustomerDetail(id) {
         </table>
       </div>
       <div class="card">
-        <div class="section-title">PIN 재설정</div>
+        <div class="section-title">스탬프 조정</div>
         <div class="row">
           <div class="field-inline">
-            <label>새 PIN (4자리)</label>
-            <input id="pin-reset-input" type="text" inputmode="numeric" maxlength="4" class="input-pin" />
+            <label>조정할 개수 (+/-)</label>
+            <input id="stamp-adjust-input" type="number" step="1" placeholder="예: 3, -1" />
           </div>
-          <button id="pin-reset-submit" class="btn-secondary">재설정</button>
+          <button id="stamp-adjust-submit" class="btn-secondary">적용</button>
         </div>
+        <div id="stamp-adjust-result"></div>
+      </div>
+      <div class="card">
+        <div class="section-title">PIN 초기화</div>
+        <p class="field-hint">PIN을 초기화하면 기존 PIN은 즉시 무효가 돼요. 손님은 앱에서 별명을 다시 입력해 새 PIN을 정할 수 있어요.</p>
+        <button id="pin-reset-submit" class="btn-secondary">PIN 초기화</button>
         <div id="pin-reset-result"></div>
       </div>
     `;
-    document.getElementById('pin-reset-submit').addEventListener('click', async () => {
-      const pin = document.getElementById('pin-reset-input').value.trim();
-      const resultEl = document.getElementById('pin-reset-result');
+    document.getElementById('stamp-adjust-submit').addEventListener('click', async () => {
+      const input = document.getElementById('stamp-adjust-input');
+      const resultEl = document.getElementById('stamp-adjust-result');
       resultEl.innerHTML = '';
-      if (!/^\d{4}$/.test(pin)) {
-        resultEl.innerHTML = `<div class="error-text">PIN은 숫자 4자리예요</div>`;
+      const delta = Number(input.value);
+      if (!Number.isInteger(delta) || delta === 0) {
+        resultEl.innerHTML = `<div class="error-text">0이 아닌 정수를 입력해주세요</div>`;
         return;
       }
       try {
-        await ownerApi.resetCustomerPin(c.id, pin);
-        resultEl.innerHTML = `<div class="success-text">PIN이 재설정됐어요</div>`;
-        document.getElementById('pin-reset-input').value = '';
+        const r = await ownerApi.adjustCustomerStamps(c.id, delta);
+        c.stamps = r.stamps;
+        c.couponCount += r.couponsIssued;
+        document.getElementById('dh-stamps').textContent = `스탬프 ${c.stamps}개 · 🎟 ${c.couponCount}장`;
+        input.value = '';
+        resultEl.innerHTML = `<div class="success-text">적용됐어요${r.couponsIssued > 0 ? ` (쿠폰 ${r.couponsIssued}장 발급)` : ''}</div>`;
+      } catch (err) {
+        resultEl.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
+      }
+    });
+    document.getElementById('pin-reset-submit').addEventListener('click', async () => {
+      const resultEl = document.getElementById('pin-reset-result');
+      resultEl.innerHTML = '';
+      if (!window.confirm(`${c.nickname} 님의 PIN을 초기화할까요?`)) return;
+      try {
+        await ownerApi.resetCustomerPin(c.id);
+        resultEl.innerHTML = `<div class="success-text">PIN이 초기화됐어요. 손님이 앱에서 별명을 다시 입력하면 새 PIN을 설정할 수 있어요.</div>`;
       } catch (err) {
         resultEl.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
       }

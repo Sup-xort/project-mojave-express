@@ -56,8 +56,13 @@ const ownerApi = {
   searchCustomers: (query) =>
     ownerFetch(`/api/owner/customers?query=${encodeURIComponent(query)}`),
   getCustomer: (id) => ownerFetch(`/api/owner/customers/${encodeURIComponent(id)}`),
-  resetCustomerPin: (id, pin) =>
-    ownerFetch(`/api/owner/customers/${encodeURIComponent(id)}/pin`, { method: 'POST', body: { pin } }),
+  resetCustomerPin: (id) =>
+    ownerFetch(`/api/owner/customers/${encodeURIComponent(id)}/pin`, { method: 'POST' }),
+  adjustCustomerStamps: (id, delta) =>
+    ownerFetch(`/api/owner/customers/${encodeURIComponent(id)}/stamps/adjust`, {
+      method: 'POST',
+      body: { delta },
+    }),
 
   settings: () => ownerFetch('/api/owner/settings'),
   updateSettings: (patch) => ownerFetch('/api/owner/settings', { method: 'PUT', body: patch }),
